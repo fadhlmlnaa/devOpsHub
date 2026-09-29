@@ -50,7 +50,7 @@ class _CreateWorkspaceSheetState extends State<CreateWorkspaceSheet> {
       );
 
       if (success && mounted) {
-        Get.back(); // close bottom sheet
+        Navigator.of(context).pop();
       }
     }
   }

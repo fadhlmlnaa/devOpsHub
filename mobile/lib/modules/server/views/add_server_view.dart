@@ -76,10 +76,10 @@ class _AddServerViewState extends State<AddServerView> {
       final success = await _serverController.createServer(
         workspaceId: _workspaceId,
         environmentId: _selectedEnvironmentId!,
-        name: _nameController.text,
+        name: _nameController.text.trim(),
         hostname: _hostnameController.text.trim().isEmpty ? null : _hostnameController.text.trim(),
         ipAddress: _ipController.text.trim().isEmpty ? null : _ipController.text.trim(),
-        sshPort: int.tryParse(_portController.text) ?? 22,
+        sshPort: int.tryParse(_portController.text.trim()) ?? 22,
         username: _usernameController.text.trim().isEmpty ? null : _usernameController.text.trim(),
         operatingSystem: _osController.text.trim().isEmpty ? null : _osController.text.trim(),
         description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
@@ -89,8 +89,8 @@ class _AddServerViewState extends State<AddServerView> {
         passphrase: _authType == 'PRIVATE_KEY' && _passphraseController.text.isNotEmpty ? _passphraseController.text : null,
       );
 
-      if (success) {
-        Get.back();
+      if (success && mounted) {
+        Navigator.of(context).pop();
       }
     }
   }
@@ -182,19 +182,32 @@ class _AddServerViewState extends State<AddServerView> {
                 ),
 
                 const SizedBox(height: 16),
+                AppTextField(
+                  label: 'IP Address',
+                  hint: 'e.g. 103.120.45.67 atau 192.168.1.8',
+                  controller: _ipController,
+                  prefixIcon: const Icon(Icons.language_rounded, size: 20),
+                  validator: (val) {
+                    final ip = val?.trim() ?? '';
+                    final host = _hostnameController.text.trim();
+                    if (ip.isEmpty && host.isEmpty) {
+                      return 'IP Address atau Hostname wajib diisi';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+                AppTextField(
+                  label: 'Hostname / FQDN (Opsional)',
+                  hint: 'e.g. host.docker.internal / app-01.prod.lan',
+                  controller: _hostnameController,
+                  prefixIcon: const Icon(Icons.alternate_email_rounded, size: 20),
+                ),
+
+                const SizedBox(height: 16),
                 Row(
                   children: [
-                    Expanded(
-                      flex: 2,
-                      child: AppTextField(
-                        label: 'IP Address / Hostname',
-                        hint: 'e.g. 103.12.34.56',
-                        controller: _ipController,
-                        prefixIcon: const Icon(Icons.language_rounded, size: 20),
-                        validator: (val) => (val == null || val.trim().isEmpty) ? 'IP Address wajib diisi' : null,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
                     Expanded(
                       flex: 1,
                       child: AppTextField(
@@ -203,7 +216,18 @@ class _AddServerViewState extends State<AddServerView> {
                         controller: _portController,
                         keyboardType: TextInputType.number,
                         prefixIcon: const Icon(Icons.tag_rounded, size: 20),
-                        validator: (val) => (val == null || int.tryParse(val) == null) ? 'Port valid' : null,
+                        validator: (val) => (val == null || int.tryParse(val.trim()) == null) ? 'Port harus angka' : null,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: AppTextField(
+                        label: 'SSH Username',
+                        hint: 'ubuntu / root / user',
+                        controller: _usernameController,
+                        prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                        validator: (val) => (val == null || val.trim().isEmpty) ? 'Username wajib diisi' : null,
                       ),
                     ),
                   ],
@@ -214,19 +238,19 @@ class _AddServerViewState extends State<AddServerView> {
                   children: [
                     Expanded(
                       child: AppTextField(
-                        label: 'SSH Username',
-                        hint: 'ubuntu / root',
-                        controller: _usernameController,
-                        prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                        label: 'Operating System',
+                        hint: 'Ubuntu 24.04 LTS',
+                        controller: _osController,
+                        prefixIcon: const Icon(Icons.memory_rounded, size: 20),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: AppTextField(
-                        label: 'Operating System',
-                        hint: 'Ubuntu 24.04',
-                        controller: _osController,
-                        prefixIcon: const Icon(Icons.memory_rounded, size: 20),
+                        label: 'Deskripsi (Opsional)',
+                        hint: 'e.g. Server utama backend',
+                        controller: _descController,
+                        prefixIcon: const Icon(Icons.notes_rounded, size: 20),
                       ),
                     ),
                   ],

@@ -48,13 +48,13 @@ class _CreateEnvironmentSheetState extends State<CreateEnvironmentSheet> {
     if (_formKey.currentState?.validate() ?? false) {
       final success = await _controller.createEnvironment(
         workspaceId: widget.workspaceId,
-        name: _nameController.text,
-        key: _keyController.text,
+        name: _nameController.text.trim(),
+        key: _keyController.text.trim(),
         description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
       );
 
       if (success && mounted) {
-        Get.back();
+        Navigator.of(context).pop();
       }
     }
   }

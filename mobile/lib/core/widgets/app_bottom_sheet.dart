@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import '../../app/theme/app_colors.dart';
 
 class AppBottomSheet extends StatelessWidget {
@@ -98,7 +97,7 @@ class AppBottomSheet extends StatelessWidget {
               else
                 IconButton(
                   icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
-                  onPressed: () => Get.back(),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
             ],
           ),
