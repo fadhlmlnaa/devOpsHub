@@ -433,36 +433,44 @@ async def test_server_connection(
             detail="Server tidak ditemukan dalam workspace ini.",
         )
 
-    target_host = server.ip_address or server.hostname
-    if not target_host:
-        return ConnectionTestResponse(
-            success=False,
-            message="Server tidak memiliki IP Address atau Hostname yang valid.",
-            status="OFFLINE",
+    if server.connection_type == "AGENT":
+        provider = get_connection_provider(server, db)
+        result = await provider.test_connection(
+            host="",
+            port=0,
+            username="",
         )
+    else:
+        target_host = server.ip_address or server.hostname
+        if not target_host:
+            return ConnectionTestResponse(
+                success=False,
+                message="Server tidak memiliki IP Address atau Hostname yang valid.",
+                status="OFFLINE",
+            )
 
-    if not server.credential:
-        return ConnectionTestResponse(
-            success=False,
-            message="Server belum memiliki credential SSH tersimpan.",
-            status="OFFLINE",
+        if not server.credential:
+            return ConnectionTestResponse(
+                success=False,
+                message="Server belum memiliki credential SSH tersimpan.",
+                status="OFFLINE",
+            )
+
+        # Decrypt credentials in-memory for the duration of the test
+        plain_password = secret_encryption_service.decrypt(server.credential.encrypted_password)
+        plain_private_key = secret_encryption_service.decrypt(server.credential.encrypted_private_key)
+        plain_passphrase = secret_encryption_service.decrypt(server.credential.encrypted_passphrase)
+        username = server.credential.username or server.username or "root"
+
+        provider = get_connection_provider(server, db)
+        result = await provider.test_connection(
+            host=target_host,
+            port=server.ssh_port,
+            username=username,
+            password=plain_password,
+            private_key=plain_private_key,
+            passphrase=plain_passphrase,
         )
-
-    # Decrypt credentials in-memory for the duration of the test
-    plain_password = secret_encryption_service.decrypt(server.credential.encrypted_password)
-    plain_private_key = secret_encryption_service.decrypt(server.credential.encrypted_private_key)
-    plain_passphrase = secret_encryption_service.decrypt(server.credential.encrypted_passphrase)
-    username = server.credential.username or server.username or "root"
-
-    provider = get_connection_provider()
-    result = await provider.test_connection(
-        host=target_host,
-        port=server.ssh_port,
-        username=username,
-        password=plain_password,
-        private_key=plain_private_key,
-        passphrase=plain_passphrase,
-    )
 
     audit = AuditService(db)
     audit.log(
@@ -474,7 +482,7 @@ async def test_server_connection(
         resource_id=str(server.id),
         environment_id=server.environment_id,
         server_id=server.id,
-        metadata={"host": target_host, "status": result.status, "success": result.success},
+        metadata={"status": result.status, "success": result.success},
         request=request,
     )
 
@@ -526,6 +534,6 @@ async def get_server_metrics(
         )
 
     service = MonitoringService()
-    return await service.get_server_metrics(server)
+    return await service.get_server_metrics(server, db=db)
 
 

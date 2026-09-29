@@ -1091,12 +1091,17 @@ class _ServerDetailViewState extends State<ServerDetailView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const Text(
-                            'DevOps Standalone Agent',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          const Expanded(
+                            child: Text(
+                              'DevOps Standalone Agent',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           if (hasAgent)
                             _buildAgentStatusBadge(agent.status)
                           else
@@ -1175,34 +1180,38 @@ class _ServerDetailViewState extends State<ServerDetailView> {
               ),
               const SizedBox(height: 16),
 
-              Row(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: AppButton(
-                      text: 'Token Baru',
-                      icon: const Icon(Icons.key_rounded, size: 16, color: AppColors.primary),
-                      variant: AppButtonVariant.outline,
-                      onPressed: () => _showEnrollmentDialog(context, server),
-                    ),
+                  AppButton(
+                    text: 'Enroll / Token Baru',
+                    icon: const Icon(Icons.key_rounded, size: 16, color: AppColors.primary),
+                    variant: AppButtonVariant.outline,
+                    onPressed: () => _showEnrollmentDialog(context, server),
                   ),
-                  const SizedBox(width: 8),
-                  if (agent.isActive && agent.status != 'DISABLED')
-                    Expanded(
-                      child: AppButton(
-                        text: 'Nonaktifkan',
-                        icon: const Icon(Icons.pause_circle_outline_rounded, size: 16, color: AppColors.warning),
-                        variant: AppButtonVariant.outline,
-                        onPressed: () => _confirmDisableAgent(server),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      if (agent.isActive && agent.status != 'DISABLED') ...[
+                        Expanded(
+                          child: AppButton(
+                            text: 'Nonaktifkan',
+                            icon: const Icon(Icons.pause_circle_outline_rounded, size: 16, color: AppColors.warning),
+                            variant: AppButtonVariant.outline,
+                            onPressed: () => _confirmDisableAgent(server),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Expanded(
+                        child: AppButton(
+                          text: 'Revoke (SSH)',
+                          icon: const Icon(Icons.link_off_rounded, size: 16, color: AppColors.error),
+                          variant: AppButtonVariant.outline,
+                          onPressed: () => _confirmRevokeAgent(server),
+                        ),
                       ),
-                    ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: AppButton(
-                      text: 'Revoke (SSH)',
-                      icon: const Icon(Icons.link_off_rounded, size: 16, color: AppColors.error),
-                      variant: AppButtonVariant.outline,
-                      onPressed: () => _confirmRevokeAgent(server),
-                    ),
+                    ],
                   ),
                 ],
               ),
@@ -1225,7 +1234,16 @@ class _ServerDetailViewState extends State<ServerDetailView> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-        Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }

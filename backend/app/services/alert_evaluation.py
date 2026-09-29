@@ -98,7 +98,7 @@ class AlertEvaluationService:
                 metrics = metric_override
             else:
                 try:
-                    res = await self.monitoring_service.get_server_metrics(server)
+                    res = await self.monitoring_service.get_server_metrics(server, db=self.db)
                     metrics = res.model_dump()
                 except Exception as e:
                     logger.warning(f"Could not fetch metrics for alert evaluation on server {server.name}: {e}")
