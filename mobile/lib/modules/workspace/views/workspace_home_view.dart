@@ -56,6 +56,21 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
       appBar: AppAppBar(
         title: 'Workspace Home',
         actions: [
+          // Audit Logs shortcut (OWNER / ADMIN)
+          Obx(() {
+            final ws = _workspaceController.selectedWorkspace.value;
+            final isOwnerOrAdmin = ws?.role == 'OWNER' || ws?.role == 'ADMIN';
+            if (!isOwnerOrAdmin) return const SizedBox.shrink();
+            return IconButton(
+              tooltip: 'Audit Logs',
+              icon: const Icon(Icons.security_outlined, color: AppColors.primary, size: 22),
+              onPressed: () {
+                if (ws != null) {
+                  Get.toNamed('/workspaces/${ws.id}/audit-logs', parameters: {'id': ws.id});
+                }
+              },
+            );
+          }),
           // Alerts Dashboard shortcut
           IconButton(
             tooltip: 'Peringatan & Alert',

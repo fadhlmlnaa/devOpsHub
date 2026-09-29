@@ -16,6 +16,7 @@ abstract class AppRoutes {
   static const backups = '/workspaces/:id/servers/:serverId/backups';
   static const alerts = '/workspaces/:id/alerts';
   static const notifications = '/workspaces/:id/notifications';
+  static const auditLogs = '/workspaces/:id/audit-logs';
 }
 
 

@@ -16,6 +16,7 @@ from app.models.alert import (
     NotificationPreference,
     Notification,
 )
+from app.models.audit_log import AuditLog
 
 __all__ = [
     "Base",
@@ -39,5 +40,6 @@ __all__ = [
     "AlertEvent",
     "NotificationPreference",
     "Notification",
+    "AuditLog",
 ]
 

@@ -1,11 +1,13 @@
 import uuid
 from typing import Annotated, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import RequireWorkspaceRole
+from app.core.validation import validate_safe_identifier
 from app.models.workspace_member import WorkspaceMember, WorkspaceRole
+from app.schemas.audit_log import AuditAction, AuditStatus
 from app.schemas.docker import (
     ContainerFilterState,
     DockerComposeActionRequest,
@@ -21,6 +23,7 @@ from app.schemas.docker import (
     DockerContainerLogsResponse,
     DockerStatusResponse,
 )
+from app.services.audit_service import AuditService
 from app.services.docker_management import DockerManagementService
 
 router = APIRouter(
@@ -128,6 +131,7 @@ async def get_container_detail(
     db: Session = Depends(get_db),
     docker_svc: DockerManagementService = Depends(get_docker_management_service),
 ):
+    validate_safe_identifier(container_id, "container_id")
     role = WorkspaceRole(member.role) if isinstance(member.role, str) else member.role
     return await docker_svc.get_container_detail(
         db, workspace_id, server_id, container_id, member.user_id, role
@@ -145,6 +149,7 @@ async def start_container(
     server_id: uuid.UUID,
     container_id: str,
     payload: DockerContainerActionRequest,
+    request: Request,
     member: Annotated[
         WorkspaceMember,
         Depends(
@@ -159,10 +164,24 @@ async def start_container(
     db: Session = Depends(get_db),
     docker_svc: DockerManagementService = Depends(get_docker_management_service),
 ):
+    validate_safe_identifier(container_id, "container_id")
     role = WorkspaceRole(member.role) if isinstance(member.role, str) else member.role
-    return await docker_svc.execute_container_action(
+    res = await docker_svc.execute_container_action(
         db, workspace_id, server_id, container_id, "start", payload.confirm, member.user_id, role
     )
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.DOCKER_CONTAINER_STARTED,
+        resource_type="docker_container",
+        status=AuditStatus.SUCCESS if res.success else AuditStatus.FAILED,
+        workspace_id=workspace_id,
+        user_id=member.user_id,
+        resource_id=container_id,
+        server_id=server_id,
+        metadata={"container_id": container_id, "container": res.container, "success": res.success},
+        request=request,
+    )
+    return res
 
 
 # 5. Stop Container
@@ -176,6 +195,7 @@ async def stop_container(
     server_id: uuid.UUID,
     container_id: str,
     payload: DockerContainerActionRequest,
+    request: Request,
     member: Annotated[
         WorkspaceMember,
         Depends(
@@ -190,10 +210,24 @@ async def stop_container(
     db: Session = Depends(get_db),
     docker_svc: DockerManagementService = Depends(get_docker_management_service),
 ):
+    validate_safe_identifier(container_id, "container_id")
     role = WorkspaceRole(member.role) if isinstance(member.role, str) else member.role
-    return await docker_svc.execute_container_action(
+    res = await docker_svc.execute_container_action(
         db, workspace_id, server_id, container_id, "stop", payload.confirm, member.user_id, role
     )
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.DOCKER_CONTAINER_STOPPED,
+        resource_type="docker_container",
+        status=AuditStatus.SUCCESS if res.success else AuditStatus.FAILED,
+        workspace_id=workspace_id,
+        user_id=member.user_id,
+        resource_id=container_id,
+        server_id=server_id,
+        metadata={"container_id": container_id, "container": res.container, "success": res.success},
+        request=request,
+    )
+    return res
 
 
 # 6. Restart Container
@@ -207,6 +241,7 @@ async def restart_container(
     server_id: uuid.UUID,
     container_id: str,
     payload: DockerContainerActionRequest,
+    request: Request,
     member: Annotated[
         WorkspaceMember,
         Depends(
@@ -221,10 +256,24 @@ async def restart_container(
     db: Session = Depends(get_db),
     docker_svc: DockerManagementService = Depends(get_docker_management_service),
 ):
+    validate_safe_identifier(container_id, "container_id")
     role = WorkspaceRole(member.role) if isinstance(member.role, str) else member.role
-    return await docker_svc.execute_container_action(
+    res = await docker_svc.execute_container_action(
         db, workspace_id, server_id, container_id, "restart", payload.confirm, member.user_id, role
     )
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.DOCKER_CONTAINER_RESTARTED,
+        resource_type="docker_container",
+        status=AuditStatus.SUCCESS if res.success else AuditStatus.FAILED,
+        workspace_id=workspace_id,
+        user_id=member.user_id,
+        resource_id=container_id,
+        server_id=server_id,
+        metadata={"container_id": container_id, "container": res.container, "success": res.success},
+        request=request,
+    )
+    return res
 
 
 # 7. Get Container Logs
@@ -461,6 +510,7 @@ async def compose_up(
     server_id: uuid.UUID,
     project_id: uuid.UUID,
     payload: DockerComposeActionRequest,
+    request: Request,
     member: Annotated[
         WorkspaceMember,
         Depends(
@@ -476,9 +526,22 @@ async def compose_up(
     docker_svc: DockerManagementService = Depends(get_docker_management_service),
 ):
     role = WorkspaceRole(member.role) if isinstance(member.role, str) else member.role
-    return await docker_svc.execute_compose_action(
+    res = await docker_svc.execute_compose_action(
         db, workspace_id, server_id, project_id, "up", payload.confirm, member.user_id, role
     )
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.DOCKER_COMPOSE_STARTED,
+        resource_type="docker_compose",
+        status=AuditStatus.SUCCESS if res.success else AuditStatus.FAILED,
+        workspace_id=workspace_id,
+        user_id=member.user_id,
+        resource_id=str(project_id),
+        server_id=server_id,
+        metadata={"project_id": str(project_id), "action": "up", "success": res.success},
+        request=request,
+    )
+    return res
 
 
 # 15. Compose Down
@@ -492,6 +555,7 @@ async def compose_down(
     server_id: uuid.UUID,
     project_id: uuid.UUID,
     payload: DockerComposeActionRequest,
+    request: Request,
     member: Annotated[
         WorkspaceMember,
         Depends(
@@ -507,9 +571,22 @@ async def compose_down(
     docker_svc: DockerManagementService = Depends(get_docker_management_service),
 ):
     role = WorkspaceRole(member.role) if isinstance(member.role, str) else member.role
-    return await docker_svc.execute_compose_action(
+    res = await docker_svc.execute_compose_action(
         db, workspace_id, server_id, project_id, "down", payload.confirm, member.user_id, role
     )
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.DOCKER_COMPOSE_STOPPED,
+        resource_type="docker_compose",
+        status=AuditStatus.SUCCESS if res.success else AuditStatus.FAILED,
+        workspace_id=workspace_id,
+        user_id=member.user_id,
+        resource_id=str(project_id),
+        server_id=server_id,
+        metadata={"project_id": str(project_id), "action": "down", "success": res.success},
+        request=request,
+    )
+    return res
 
 
 # 16. Compose Restart
@@ -523,6 +600,7 @@ async def compose_restart(
     server_id: uuid.UUID,
     project_id: uuid.UUID,
     payload: DockerComposeActionRequest,
+    request: Request,
     member: Annotated[
         WorkspaceMember,
         Depends(
@@ -538,6 +616,19 @@ async def compose_restart(
     docker_svc: DockerManagementService = Depends(get_docker_management_service),
 ):
     role = WorkspaceRole(member.role) if isinstance(member.role, str) else member.role
-    return await docker_svc.execute_compose_action(
+    res = await docker_svc.execute_compose_action(
         db, workspace_id, server_id, project_id, "restart", payload.confirm, member.user_id, role
     )
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.DOCKER_COMPOSE_RESTARTED,
+        resource_type="docker_compose",
+        status=AuditStatus.SUCCESS if res.success else AuditStatus.FAILED,
+        workspace_id=workspace_id,
+        user_id=member.user_id,
+        resource_id=str(project_id),
+        server_id=server_id,
+        metadata={"project_id": str(project_id), "action": "restart", "success": res.success},
+        request=request,
+    )
+    return res

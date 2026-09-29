@@ -55,6 +55,11 @@ class RefreshToken(Base):
     )
 
     @property
+    def is_revoked(self) -> bool:
+        """Returns True if the token has been revoked."""
+        return self.revoked_at is not None
+
+    @property
     def is_active(self) -> bool:
         """Returns True if the refresh token is not revoked and not expired."""
         if self.revoked_at is not None:

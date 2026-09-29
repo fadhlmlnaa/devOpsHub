@@ -1,15 +1,18 @@
 import uuid
 from typing import Annotated, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import RequireWorkspaceRole
+from app.core.rate_limit import rate_limit
 from app.models.user import User
-from app.models.workspace_member import WorkspaceRole
+from app.models.workspace_member import WorkspaceMember, WorkspaceRole
 from app.models.environment import Environment
 from app.models.server import Server
 from app.models.server_credential import ServerCredential
+from app.schemas.audit_log import AuditAction, AuditStatus
 from app.schemas.server import (
     ServerCreate,
     ServerUpdate,
@@ -18,6 +21,7 @@ from app.schemas.server import (
     ConnectionTestResponse,
 )
 from app.schemas.monitoring import ServerMetricsResponse
+from app.services.audit_service import AuditService
 from app.services.encryption import secret_encryption_service
 from app.services.connection_provider import get_connection_provider
 from app.services.monitoring import MonitoringService
@@ -69,8 +73,8 @@ def _to_server_response(server: Server) -> ServerResponse:
 )
 def list_servers(
     workspace_id: uuid.UUID,
-    auth: Annotated[
-        tuple[User, WorkspaceRole],
+    membership: Annotated[
+        WorkspaceMember,
         Depends(
             RequireWorkspaceRole([
                 WorkspaceRole.OWNER,
@@ -101,8 +105,9 @@ def list_servers(
 def create_server(
     workspace_id: uuid.UUID,
     data: ServerCreate,
-    auth: Annotated[
-        tuple[User, WorkspaceRole],
+    request: Request,
+    membership: Annotated[
+        WorkspaceMember,
         Depends(
             RequireWorkspaceRole([
                 WorkspaceRole.OWNER,
@@ -164,6 +169,21 @@ def create_server(
 
     db.commit()
     db.refresh(server)
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.SERVER_CREATED,
+        resource_type="server",
+        status=AuditStatus.SUCCESS,
+        workspace_id=workspace_id,
+        user_id=membership.user_id,
+        resource_id=str(server.id),
+        environment_id=server.environment_id,
+        server_id=server.id,
+        metadata={"name": server.name, "hostname": server.hostname, "ip_address": server.ip_address},
+        request=request,
+    )
+
     return _to_server_response(server)
 
 
@@ -175,8 +195,8 @@ def create_server(
 def get_server(
     workspace_id: uuid.UUID,
     server_id: uuid.UUID,
-    auth: Annotated[
-        tuple[User, WorkspaceRole],
+    membership: Annotated[
+        WorkspaceMember,
         Depends(
             RequireWorkspaceRole([
                 WorkspaceRole.OWNER,
@@ -215,8 +235,9 @@ def update_server(
     workspace_id: uuid.UUID,
     server_id: uuid.UUID,
     data: ServerUpdate,
-    auth: Annotated[
-        tuple[User, WorkspaceRole],
+    request: Request,
+    membership: Annotated[
+        WorkspaceMember,
         Depends(
             RequireWorkspaceRole([
                 WorkspaceRole.OWNER,
@@ -297,6 +318,21 @@ def update_server(
 
     db.commit()
     db.refresh(server)
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.SERVER_UPDATED,
+        resource_type="server",
+        status=AuditStatus.SUCCESS,
+        workspace_id=workspace_id,
+        user_id=membership.user_id,
+        resource_id=str(server.id),
+        environment_id=server.environment_id,
+        server_id=server.id,
+        metadata={"name": server.name},
+        request=request,
+    )
+
     return _to_server_response(server)
 
 
@@ -308,8 +344,9 @@ def update_server(
 def delete_server(
     workspace_id: uuid.UUID,
     server_id: uuid.UUID,
-    auth: Annotated[
-        tuple[User, WorkspaceRole],
+    request: Request,
+    membership: Annotated[
+        WorkspaceMember,
         Depends(
             RequireWorkspaceRole([
                 WorkspaceRole.OWNER,
@@ -334,8 +371,25 @@ def delete_server(
             detail="Server tidak ditemukan dalam workspace ini.",
         )
 
+    server_name = server.name
+    env_id = server.environment_id
     db.delete(server)
     db.commit()
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.SERVER_DELETED,
+        resource_type="server",
+        status=AuditStatus.SUCCESS,
+        workspace_id=workspace_id,
+        user_id=membership.user_id,
+        resource_id=str(server_id),
+        environment_id=env_id,
+        server_id=server_id,
+        metadata={"name": server_name},
+        request=request,
+    )
+
     return None
 
 
@@ -343,12 +397,14 @@ def delete_server(
     "/{server_id}/connection-test",
     response_model=ConnectionTestResponse,
     summary="Test Koneksi SSH Server (OWNER, ADMIN, DEVELOPER)",
+    dependencies=[Depends(rate_limit(lambda: settings.OPERATION_RATE_LIMIT))],
 )
 async def test_server_connection(
     workspace_id: uuid.UUID,
     server_id: uuid.UUID,
-    auth: Annotated[
-        tuple[User, WorkspaceRole],
+    request: Request,
+    membership: Annotated[
+        WorkspaceMember,
         Depends(
             RequireWorkspaceRole([
                 WorkspaceRole.OWNER,
@@ -408,6 +464,20 @@ async def test_server_connection(
         passphrase=plain_passphrase,
     )
 
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.SERVER_CONNECTION_TESTED,
+        resource_type="server",
+        status=AuditStatus.SUCCESS if result.success else AuditStatus.FAILED,
+        workspace_id=workspace_id,
+        user_id=membership.user_id,
+        resource_id=str(server.id),
+        environment_id=server.environment_id,
+        server_id=server.id,
+        metadata={"host": target_host, "status": result.status, "success": result.success},
+        request=request,
+    )
+
     return ConnectionTestResponse(
         success=result.success,
         message=result.message,
@@ -424,8 +494,8 @@ async def test_server_connection(
 async def get_server_metrics(
     workspace_id: uuid.UUID,
     server_id: uuid.UUID,
-    auth: Annotated[
-        tuple[User, WorkspaceRole],
+    membership: Annotated[
+        WorkspaceMember,
         Depends(
             RequireWorkspaceRole([
                 WorkspaceRole.OWNER,
@@ -457,4 +527,5 @@ async def get_server_metrics(
 
     service = MonitoringService()
     return await service.get_server_metrics(server)
+
 

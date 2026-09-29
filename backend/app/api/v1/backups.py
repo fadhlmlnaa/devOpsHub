@@ -1,12 +1,15 @@
 from typing import List, Optional
 import uuid
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user, RequireWorkspaceRole
+from app.core.rate_limit import rate_limit
 from app.models.user import User
 from app.models.workspace_member import WorkspaceMember, WorkspaceRole
+from app.schemas.audit_log import AuditAction, AuditStatus
 from app.schemas.backup import (
     BackupConfigCreate,
     BackupConfigUpdate,
@@ -18,6 +21,7 @@ from app.schemas.backup import (
     BackupListResponse,
     BackupLogsResponse,
 )
+from app.services.audit_service import AuditService
 from app.services.backup_management import BackupManagementService
 
 router = APIRouter(tags=["Backup Management"])
@@ -147,46 +151,82 @@ def delete_backup_config(
     "/workspaces/{workspace_id}/backup-configs/{config_id}/run",
     response_model=BackupResponse,
     summary="Trigger a controlled backup execution",
+    dependencies=[Depends(rate_limit(lambda: settings.OPERATION_RATE_LIMIT))],
 )
 async def trigger_backup(
     workspace_id: uuid.UUID,
     config_id: uuid.UUID,
     payload: BackupTriggerRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     member: WorkspaceMember = Depends(RequireWorkspaceRole(MUTATION_ROLES)),
 ):
     """Triggers a controlled backup execution on the target server (ADMIN/OWNER only)."""
     service = BackupManagementService(db)
-    return await service.trigger_backup(
+    res = await service.trigger_backup(
         workspace_id=workspace_id,
         config_id=config_id,
         member=member,
         user_id=current_user.id,
         confirm=payload.confirm,
     )
+    audit = AuditService(db)
+    action_type = AuditAction.BACKUP_SUCCEEDED if res.status == "SUCCESS" else (
+        AuditAction.BACKUP_FAILED if res.status == "FAILED" else AuditAction.BACKUP_STARTED
+    )
+    audit.log(
+        action=action_type,
+        resource_type="backup",
+        status=AuditStatus.SUCCESS if res.status == "SUCCESS" else (
+            AuditStatus.FAILED if res.status == "FAILED" else AuditStatus.SUCCESS
+        ),
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        resource_id=str(res.id),
+        environment_id=res.environment_id,
+        server_id=res.server_id,
+        metadata={"backup_id": str(res.id), "status": res.status, "backup_type": res.backup_type},
+        request=request,
+    )
+    return res
 
 
 @router.post(
     "/workspaces/{workspace_id}/backups/{backup_id}/verify",
     response_model=BackupVerifyResponse,
     summary="Verify backup integrity via SHA-256 checksum",
+    dependencies=[Depends(rate_limit(lambda: settings.OPERATION_RATE_LIMIT))],
 )
 async def verify_backup(
     workspace_id: uuid.UUID,
     backup_id: uuid.UUID,
+    request: Request,
     payload: BackupVerifyRequest = BackupVerifyRequest(confirm=True),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     member: WorkspaceMember = Depends(RequireWorkspaceRole(MUTATION_ROLES)),
 ):
     """Verifies that the backup file exists on the server and matches stored SHA-256 (ADMIN/OWNER only)."""
     service = BackupManagementService(db)
-    return await service.verify_backup(
+    res = await service.verify_backup(
         workspace_id=workspace_id,
         backup_id=backup_id,
         member=member,
         confirm=payload.confirm,
     )
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.BACKUP_VERIFIED,
+        resource_type="backup",
+        status=AuditStatus.SUCCESS if res.verified else AuditStatus.FAILED,
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        resource_id=str(backup_id),
+        metadata={"backup_id": str(backup_id), "verified": res.verified, "message": res.message},
+        request=request,
+    )
+    return res
 
 
 # --- Backup History & Logs APIs ---

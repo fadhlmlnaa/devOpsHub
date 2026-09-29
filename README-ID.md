@@ -337,8 +337,30 @@ Buka Aplikasi (Splash)
       - **Alert Rule Form**: Pembuat aturan fleksibel dengan pemilih metrik, operator, threshold, durasi detik, severity, dan target scope (server/environment).
       - **Notification Inbox**: Inbox in-app notification dengan filter unread, tombol "Tandai Semua Dibaca", dan bottom sheet preferensi notifikasi.
       - **AppBar Badges**: Indikator lonceng notifikasi dinamis 🔔 dengan unread counter badge.
-    - **Catatan & Batasan Sistem**:
-      - *Sistem alerting ini dirancang secara terpusat, ringan (lightweight), dan modular, dan secara sengaja bukan merupakan pengganti Prometheus / Alertmanager.*
+  - **Step 14: Security Hardening & Audit Logging (TERBARU)**:
+    - **Tujuan**: Memastikan platform aman, data rahasia terproteksi (*defense-in-depth*), aksi penting tercatat (*append-only audit*), dan tidak ada eksekusi perintah berbahaya/arbitrer.
+    - **Arsitektur Keamanan**:
+      ```text
+      FastAPI Request -> Rate Limiting Middleware (429)
+                      -> Security Headers Middleware (nosniff, DENY, etc.)
+                      -> CORS Whitelist Validation
+                      -> JWT Auth & Token Family Rotation / Reuse Detection
+                      -> Multi-Tenant Workspace & RBAC Isolation
+                      -> Input Validation (Anti-Traversal & Safe Identifiers)
+                      -> Operation Execution (Predefined static commands only)
+                      -> Redacted Audit Log Entry (Append-Only)
+      ```
+    - **Fitur Keamanan Utama**:
+      - **Append-Only Audit Logging**: Seluruh operasi sensitif (Auth, Server CRUD, Service action, Docker/Compose action, Deployment, Backup, Alert rules, Workspace roles) otomatis dicatat di tabel `audit_logs` bersama metadata IP, User Agent, Timestamp, Workspace, dan Actor. Endpoint audit bersifat *read-only* khusus untuk role `OWNER` dan `ADMIN`. Tidak ada endpoint update/delete audit log.
+      - **Token Rotation & Family Session Revocation**: Refresh token lama langsung di-revoke saat refresh. Jika token lama dipakai ulang (indikasi pencurian token), seluruh token dalam *family* tersebut dibatalkan otomatis.
+      - **Automatic Recursive Secret Redaction**: Password, token, private key, secret, dan credential otomatis disanitasi (`[REDACTED]`) sebelum disimpan di metadata audit log atau ditampilkan di respons/log aplikasi.
+      - **Zero Arbitrary Shell Execution**: Tidak ada endpoint remote shell mentah. Seluruh aksi remote dibatasi pada *whitelisted predefined operational actions*.
+      - **Input Validation & Path Traversal Protections**: Regex ketat untuk identifier sistem serta normalisasi path untuk menolak `..` dan karakter berbahaya.
+      - **Sliding Window Rate Limiter**: Membatasi brute-force pada endpoint autentikasi (`AUTH_RATE_LIMIT_LOGIN_MAX=5/menit`, `AUTH_RATE_LIMIT_REGISTER_MAX=3/menit`, `OPERATION_RATE_LIMIT=120/menit`).
+      - **Security Headers & CORS**: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-XSS-Protection: 1; mode=block`.
+    - **Flutter Mobile Screens**:
+      - **Audit Logs Explorer**: Menu dedicated di Workspace Home untuk meninjau log aktivitas, dilengkapi pencarian filter berdasarkan action (*LOGIN, SERVER_ACTION, DEPLOY, BACKUP, dll.*), resource type, status, dan dialog detail metadata audit dengan tampilan JSON terformat & tersanitasi.
+      - **RBAC Guard**: Tombol/Menu Audit Log hanya ditampilkan dan dapat diakses oleh user ber-role `OWNER` / `ADMIN`.
 
 ---
 
@@ -357,6 +379,7 @@ flutter pub get
 flutter analyze
 flutter test
 ```
+
 
 
 

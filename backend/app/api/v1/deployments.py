@@ -1,13 +1,16 @@
 import logging
 from typing import List, Optional
 import uuid
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user, RequireWorkspaceRole
+from app.core.rate_limit import rate_limit
 from app.models.user import User
 from app.models.workspace_member import WorkspaceMember, WorkspaceRole
+from app.schemas.audit_log import AuditAction, AuditStatus
 from app.schemas.deployment import (
     DeploymentConfigCreate,
     DeploymentConfigUpdate,
@@ -17,6 +20,7 @@ from app.schemas.deployment import (
     DeploymentListResponse,
     DeploymentLogsResponse,
 )
+from app.services.audit_service import AuditService
 from app.services.deployment_management import DeploymentManagementService
 
 logger = logging.getLogger(__name__)
@@ -147,24 +151,45 @@ def delete_deployment_config(
     "/workspaces/{workspace_id}/deployment-configs/{config_id}/deploy",
     response_model=DeploymentResponse,
     summary="Trigger a controlled deployment",
+    dependencies=[Depends(rate_limit(lambda: settings.OPERATION_RATE_LIMIT))],
 )
 async def trigger_deployment(
     workspace_id: uuid.UUID,
     config_id: uuid.UUID,
     payload: DeploymentTriggerRequest,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     member: WorkspaceMember = Depends(RequireWorkspaceRole(MUTATION_ROLES)),
 ):
     """Triggers a controlled deployment execution on the registered target server (ADMIN/OWNER only)."""
     service = DeploymentManagementService(db)
-    return await service.trigger_deployment(
+    res = await service.trigger_deployment(
         workspace_id=workspace_id,
         config_id=config_id,
         member=member,
         user_id=current_user.id,
         confirm=payload.confirm,
     )
+    audit = AuditService(db)
+    action_type = AuditAction.DEPLOYMENT_SUCCEEDED if res.status == "SUCCESS" else (
+        AuditAction.DEPLOYMENT_FAILED if res.status == "FAILED" else AuditAction.DEPLOYMENT_STARTED
+    )
+    audit.log(
+        action=action_type,
+        resource_type="deployment",
+        status=AuditStatus.SUCCESS if res.status == "SUCCESS" else (
+            AuditStatus.FAILED if res.status == "FAILED" else AuditStatus.SUCCESS
+        ),
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        resource_id=str(res.id),
+        environment_id=res.environment_id,
+        server_id=res.server_id,
+        metadata={"deployment_id": str(res.id), "status": res.status},
+        request=request,
+    )
+    return res
 
 
 # --- Deployment History & Logs API ---

@@ -63,6 +63,8 @@ async def lifespan(app: FastAPI):
     logger.info("Mematikan DevOps Platform API Backend...")
 
 
+from app.core.security_headers import SecurityHeadersMiddleware
+
 app = FastAPI(
     title="DevOps Mobile Platform API",
     description="Backend API untuk DevOps Mobile Platform",
@@ -72,11 +74,15 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Enable CORS for Web/Chrome testing and cross-origin requests
+# Add Security Headers Middleware
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Enable CORS with configured origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=settings.cors_origins if settings.cors_origins else ["*"],
+    allow_credentials=True if settings.cors_origins != ["*"] else False,
+    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_methods=["*"],
     allow_headers=["*"],
 )

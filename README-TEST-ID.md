@@ -360,19 +360,34 @@ flutter test
 
 ---
 
-### Skenario Uji 19: Logout
-1. Klik tombol **Logout** di AppBar.
-2. Dialog konfirmasi muncul.
-3. Klik **"Logout"**.
-4. Sesi lokal dibersihkan, Refresh Token di-revoke di backend, dan aplikasi kembali ke layar Login.
+### Skenario Uji 20: Audit Logging & Security Hardening (Step 14)
+1. **Pencatatan Audit Otomatis (Append-Only)**:
+   - Lakukan berbagai aksi di aplikasi: Login, buat/edit server, restart service systemd, trigger container action, jalankan deployment, atau trigger backup.
+   - Buka **Workspace Home** -> Klik menu **"Audit Logs"** (ikon history/security).
+   - Pastikan setiap aksi yang baru saja dijalankan muncul di daftar audit logs dengan status badge (*SUCCESS* hijau / *FAILED* merah), nama aksi (misal `SERVICE_ACTION`, `DEPLOYMENT_TRIGGER`, `LOGIN`), nama actor/user, IP address, dan timestamp relatif.
+2. **Filter & Pencarian Audit Log**:
+   - Filter berdasarkan tipe resource (`server`, `service`, `deployment`, `backup`, `alert`).
+   - Filter berdasarkan action (`LOGIN`, `SERVICE_ACTION`, `TRIGGER_DEPLOYMENT`, dll.).
+   - Klik salah satu item audit log untuk membuka dialog **Detail Metadata Audit**:
+     - Pastikan informasi sensitif seperti token, SSH key, atau password telah di-mask menjadi `[REDACTED]`.
+3. **Uji RBAC Audit Log**:
+   - Login sebagai user dengan role `VIEWER` atau `DEVELOPER`: Menu Audit Log tidak muncul di Workspace Home dan akses langsung ke endpoint audit log mengembalikan HTTP 403 Forbidden.
+   - Login sebagai `ADMIN` atau `OWNER`: Menu Audit Log tampil dan dapat diakses dengan lancar.
+4. **Uji Token Rotation & Reuse Detection**:
+   - Lakukan refresh token. Token lama otomatis di-revoke dan token baru diberikan.
+   - Jika refresh token lama dicoba dipakai ulang secara sengaja (serangan replay), backend langsung membatalkan seluruh token family pengguna tersebut.
+5. **Uji Rate Limiting**:
+   - Lakukan request login salah sebanyak 6 kali berturut-turut dalam 1 menit:
+   - Backend merespons dengan HTTP `429 Too Many Requests` disertai header `Retry-After`.
 
 ---
 
-## 🧪 Struktur Unit & Widget Test Otomatis (Mobile)
+## 🧪 Struktur Unit & Widget Test Otomatis (Mobile & Backend)
 
+### Mobile Test
 File test terletak di folder `mobile/test/`:
-- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk seluruh model backend termasuk `AlertRuleModel`, `AlertModel`, `AlertEventModel`, `NotificationModel`, `NotificationPreferenceModel`, dan `UnreadNotificationCountModel` (Step 13).
-- `api_exception_test.dart`: Pengujian parsing error backend, handling status code HTTP (400, 401, 403, 404, 409, 422, 500) dan timeout connection.
+- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk seluruh model backend termasuk `AuditLogModel`, `AuditLogListResponseModel` (Step 14), `AlertRuleModel`, `AlertModel`, `NotificationModel`.
+- `api_exception_test.dart`: Pengujian parsing error backend, handling status code HTTP (400, 401, 403, 404, 409, 422, 429, 500) dan timeout connection.
 - `widgets_test.dart`: Pengujian rendering dan event listener pada Base Widgets (`AppButton`, `AppTextField`, `AppStatusBadge`, `AppCard`).
 - `widget_test.dart`: Pengujian inisialisasi aplikasi `DevOpsHubApp` dan halaman startup.
 
@@ -380,6 +395,16 @@ Jalankan seluruh test:
 ```bash
 cd mobile && flutter test
 ```
+
+### Backend Test
+File test terletak di folder `backend/tests/`:
+- `test_security_audit.py`: 12 test komprehensif untuk validasi audit logging append-only, immutability, RBAC access control, IDOR workspace isolation, token rotation, token reuse revocation, sliding window rate limiting (429), security headers, dan input validation anti-traversal.
+
+Jalankan backend test:
+```bash
+docker compose exec backend pytest -v
+```
+
 
 
 

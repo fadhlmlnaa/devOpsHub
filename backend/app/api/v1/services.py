@@ -1,19 +1,22 @@
 import uuid
 from typing import Annotated, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import RequireWorkspaceRole
+from app.core.validation import validate_safe_identifier
 from app.models.server import Server
 from app.models.user import User
-from app.models.workspace_member import WorkspaceRole
+from app.models.workspace_member import WorkspaceMember, WorkspaceRole
+from app.schemas.audit_log import AuditAction, AuditStatus
 from app.schemas.service import (
     ServiceActionRequest,
     ServiceActionResponse,
     ServiceDetailResponse,
     ServiceListResponse,
 )
+from app.services.audit_service import AuditService
 from app.services.service_management import (
     ServiceManagementService,
     get_service_management_service,
@@ -47,8 +50,8 @@ def _get_server_or_404(db: Session, workspace_id: uuid.UUID, server_id: uuid.UUI
 async def list_services(
     workspace_id: uuid.UUID,
     server_id: uuid.UUID,
-    current_user_and_role: Annotated[
-        tuple[User, WorkspaceRole],
+    membership: Annotated[
+        WorkspaceMember,
         Depends(
             RequireWorkspaceRole(
                 [
@@ -79,8 +82,8 @@ async def get_service(
     workspace_id: uuid.UUID,
     server_id: uuid.UUID,
     service_name: str,
-    current_user_and_role: Annotated[
-        tuple[User, WorkspaceRole],
+    membership: Annotated[
+        WorkspaceMember,
         Depends(
             RequireWorkspaceRole(
                 [
@@ -95,6 +98,7 @@ async def get_service(
     db: Session = Depends(get_db),
     service_svc: ServiceManagementService = Depends(get_service_management_service),
 ):
+    validate_safe_identifier(service_name, "service_name")
     server = _get_server_or_404(db, workspace_id, server_id)
     return await service_svc.get_service(server=server, service_name=service_name)
 
@@ -109,20 +113,37 @@ async def start_service(
     server_id: uuid.UUID,
     service_name: str,
     payload: ServiceActionRequest,
-    current_user_and_role: Annotated[
-        tuple[User, WorkspaceRole],
+    request: Request,
+    membership: Annotated[
+        WorkspaceMember,
         Depends(RequireWorkspaceRole([WorkspaceRole.OWNER, WorkspaceRole.ADMIN])),
     ],
     db: Session = Depends(get_db),
     service_svc: ServiceManagementService = Depends(get_service_management_service),
 ):
+    validate_safe_identifier(service_name, "service_name")
     server = _get_server_or_404(db, workspace_id, server_id)
-    return await service_svc.execute_action(
+    res = await service_svc.execute_action(
         server=server,
         service_name=service_name,
         action="start",
         confirm=payload.confirm,
     )
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.SERVICE_STARTED,
+        resource_type="service",
+        status=AuditStatus.SUCCESS if res.success else AuditStatus.FAILED,
+        workspace_id=workspace_id,
+        user_id=membership.user_id,
+        resource_id=service_name,
+        environment_id=server.environment_id,
+        server_id=server.id,
+        metadata={"service_name": service_name, "success": res.success, "message": res.message},
+        request=request,
+    )
+    return res
 
 
 @router.post(
@@ -135,20 +156,37 @@ async def stop_service(
     server_id: uuid.UUID,
     service_name: str,
     payload: ServiceActionRequest,
-    current_user_and_role: Annotated[
-        tuple[User, WorkspaceRole],
+    request: Request,
+    membership: Annotated[
+        WorkspaceMember,
         Depends(RequireWorkspaceRole([WorkspaceRole.OWNER, WorkspaceRole.ADMIN])),
     ],
     db: Session = Depends(get_db),
     service_svc: ServiceManagementService = Depends(get_service_management_service),
 ):
+    validate_safe_identifier(service_name, "service_name")
     server = _get_server_or_404(db, workspace_id, server_id)
-    return await service_svc.execute_action(
+    res = await service_svc.execute_action(
         server=server,
         service_name=service_name,
         action="stop",
         confirm=payload.confirm,
     )
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.SERVICE_STOPPED,
+        resource_type="service",
+        status=AuditStatus.SUCCESS if res.success else AuditStatus.FAILED,
+        workspace_id=workspace_id,
+        user_id=membership.user_id,
+        resource_id=service_name,
+        environment_id=server.environment_id,
+        server_id=server.id,
+        metadata={"service_name": service_name, "success": res.success, "message": res.message},
+        request=request,
+    )
+    return res
 
 
 @router.post(
@@ -161,20 +199,37 @@ async def restart_service(
     server_id: uuid.UUID,
     service_name: str,
     payload: ServiceActionRequest,
-    current_user_and_role: Annotated[
-        tuple[User, WorkspaceRole],
+    request: Request,
+    membership: Annotated[
+        WorkspaceMember,
         Depends(RequireWorkspaceRole([WorkspaceRole.OWNER, WorkspaceRole.ADMIN])),
     ],
     db: Session = Depends(get_db),
     service_svc: ServiceManagementService = Depends(get_service_management_service),
 ):
+    validate_safe_identifier(service_name, "service_name")
     server = _get_server_or_404(db, workspace_id, server_id)
-    return await service_svc.execute_action(
+    res = await service_svc.execute_action(
         server=server,
         service_name=service_name,
         action="restart",
         confirm=payload.confirm,
     )
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.SERVICE_RESTARTED,
+        resource_type="service",
+        status=AuditStatus.SUCCESS if res.success else AuditStatus.FAILED,
+        workspace_id=workspace_id,
+        user_id=membership.user_id,
+        resource_id=service_name,
+        environment_id=server.environment_id,
+        server_id=server.id,
+        metadata={"service_name": service_name, "success": res.success, "message": res.message},
+        request=request,
+    )
+    return res
 
 
 @router.post(
@@ -187,17 +242,35 @@ async def reload_service(
     server_id: uuid.UUID,
     service_name: str,
     payload: ServiceActionRequest,
-    current_user_and_role: Annotated[
-        tuple[User, WorkspaceRole],
+    request: Request,
+    membership: Annotated[
+        WorkspaceMember,
         Depends(RequireWorkspaceRole([WorkspaceRole.OWNER, WorkspaceRole.ADMIN])),
     ],
     db: Session = Depends(get_db),
     service_svc: ServiceManagementService = Depends(get_service_management_service),
 ):
+    validate_safe_identifier(service_name, "service_name")
     server = _get_server_or_404(db, workspace_id, server_id)
-    return await service_svc.execute_action(
+    res = await service_svc.execute_action(
         server=server,
         service_name=service_name,
         action="reload",
         confirm=payload.confirm,
     )
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.SERVICE_RELOADED,
+        resource_type="service",
+        status=AuditStatus.SUCCESS if res.success else AuditStatus.FAILED,
+        workspace_id=workspace_id,
+        user_id=membership.user_id,
+        resource_id=service_name,
+        environment_id=server.environment_id,
+        server_id=server.id,
+        metadata={"service_name": service_name, "success": res.success, "message": res.message},
+        request=request,
+    )
+    return res
+

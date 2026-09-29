@@ -1,6 +1,6 @@
 from typing import List, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, get_current_user, RequireWorkspaceRole
@@ -29,7 +29,9 @@ from app.schemas.alert import (
     UnreadNotificationCountResponse,
     AlertEvaluationSummary,
 )
+from app.schemas.audit_log import AuditAction, AuditStatus
 from app.services.alert_evaluation import AlertEvaluationService
+from app.services.audit_service import AuditService
 from app.services.notification_service import NotificationService
 
 router = APIRouter()
@@ -91,6 +93,7 @@ def list_alert_rules(
 def create_alert_rule(
     workspace_id: UUID,
     payload: AlertRuleCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _role=Depends(
@@ -144,6 +147,20 @@ def create_alert_rule(
     db.add(rule)
     db.commit()
     db.refresh(rule)
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.ALERT_RULE_CREATED,
+        resource_type="alert_rule",
+        status=AuditStatus.SUCCESS,
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        resource_id=str(rule.id),
+        environment_id=rule.environment_id,
+        server_id=rule.server_id,
+        metadata={"name": rule.name, "metric_type": rule.metric_type, "severity": rule.severity},
+        request=request,
+    )
 
     resp = AlertRuleResponse.model_validate(rule)
     if rule.environment:
@@ -205,6 +222,7 @@ def update_alert_rule(
     workspace_id: UUID,
     rule_id: UUID,
     payload: AlertRuleUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _role=Depends(
@@ -281,6 +299,20 @@ def update_alert_rule(
     db.commit()
     db.refresh(rule)
 
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.ALERT_RULE_UPDATED,
+        resource_type="alert_rule",
+        status=AuditStatus.SUCCESS,
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        resource_id=str(rule.id),
+        environment_id=rule.environment_id,
+        server_id=rule.server_id,
+        metadata={"name": rule.name},
+        request=request,
+    )
+
     resp = AlertRuleResponse.model_validate(rule)
     if rule.environment:
         resp.environment_name = rule.environment.name
@@ -297,6 +329,7 @@ def update_alert_rule(
 def delete_alert_rule(
     workspace_id: UUID,
     rule_id: UUID,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _role=Depends(
@@ -317,8 +350,26 @@ def delete_alert_rule(
             detail="Aturan alert tidak ditemukan.",
         )
 
+    rule_name = rule.name
+    env_id = rule.environment_id
+    srv_id = rule.server_id
     db.delete(rule)
     db.commit()
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.ALERT_RULE_DELETED,
+        resource_type="alert_rule",
+        status=AuditStatus.SUCCESS,
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        resource_id=str(rule_id),
+        environment_id=env_id,
+        server_id=srv_id,
+        metadata={"name": rule_name},
+        request=request,
+    )
+
     return None
 
 
@@ -609,6 +660,7 @@ def get_unread_notification_count(
 def mark_notification_as_read(
     workspace_id: UUID,
     notification_id: UUID,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _role=Depends(
@@ -628,6 +680,19 @@ def mark_notification_as_read(
         user_id=current_user.id,
         workspace_id=workspace_id,
     )
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.NOTIFICATION_READ,
+        resource_type="notification",
+        status=AuditStatus.SUCCESS,
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        resource_id=str(notification_id),
+        metadata={"notification_id": str(notification_id)},
+        request=request,
+    )
+
     return NotificationResponse.model_validate(notif)
 
 

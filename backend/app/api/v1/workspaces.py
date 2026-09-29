@@ -1,7 +1,7 @@
 import uuid
 from typing import List
 from typing_extensions import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
@@ -9,6 +9,7 @@ from app.core.deps import get_current_active_user, RequireWorkspaceRole
 from app.models.user import User
 from app.models.workspace import Workspace
 from app.models.workspace_member import WorkspaceMember, WorkspaceRole
+from app.schemas.audit_log import AuditAction, AuditStatus
 from app.schemas.workspace import (
     WorkspaceCreate,
     WorkspaceUpdate,
@@ -21,6 +22,7 @@ from app.schemas.workspace_member import (
     WorkspaceMemberResponse,
 )
 from app.schemas.auth import MessageResponse
+from app.services.audit_service import AuditService
 
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
 
@@ -36,6 +38,7 @@ router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
 )
 def create_workspace(
     data: WorkspaceCreate,
+    request: Request,
     current_user: Annotated[User, Depends(get_current_active_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
@@ -57,6 +60,18 @@ def create_workspace(
     db.add(member)
     db.commit()
     db.refresh(workspace)
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.WORKSPACE_CREATED,
+        resource_type="workspace",
+        status=AuditStatus.SUCCESS,
+        workspace_id=workspace.id,
+        user_id=current_user.id,
+        resource_id=str(workspace.id),
+        metadata={"name": workspace.name},
+        request=request,
+    )
 
     return WorkspaceDetailResponse(
         id=workspace.id,
@@ -157,6 +172,7 @@ def get_workspace_detail(
 def update_workspace(
     workspace_id: uuid.UUID,
     data: WorkspaceUpdate,
+    request: Request,
     membership: Annotated[
         WorkspaceMember,
         Depends(
@@ -179,6 +195,18 @@ def update_workspace(
 
     db.commit()
     db.refresh(ws)
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.WORKSPACE_UPDATED,
+        resource_type="workspace",
+        status=AuditStatus.SUCCESS,
+        workspace_id=ws.id,
+        user_id=membership.user_id,
+        resource_id=str(ws.id),
+        metadata={"name": ws.name},
+        request=request,
+    )
 
     return WorkspaceDetailResponse(
         id=ws.id,
@@ -251,6 +279,7 @@ def list_workspace_members(
 def add_workspace_member(
     workspace_id: uuid.UUID,
     data: WorkspaceMemberCreate,
+    request: Request,
     membership: Annotated[
         WorkspaceMember,
         Depends(
@@ -311,6 +340,18 @@ def add_workspace_member(
     db.commit()
     db.refresh(new_member)
 
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.WORKSPACE_MEMBER_ADDED,
+        resource_type="workspace_member",
+        status=AuditStatus.SUCCESS,
+        workspace_id=workspace_id,
+        user_id=membership.user_id,
+        resource_id=str(new_member.id),
+        metadata={"target_email": target_user.email, "role": new_member.role},
+        request=request,
+    )
+
     return WorkspaceMemberResponse(
         id=new_member.id,
         user_id=target_user.id,
@@ -332,6 +373,7 @@ def add_workspace_member(
 )
 def leave_workspace(
     workspace_id: uuid.UUID,
+    request: Request,
     current_user: Annotated[User, Depends(get_current_active_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
@@ -369,6 +411,18 @@ def leave_workspace(
     db.delete(membership)
     db.commit()
 
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.WORKSPACE_MEMBER_REMOVED,
+        resource_type="workspace_member",
+        status=AuditStatus.SUCCESS,
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        resource_id=str(current_user.id),
+        metadata={"action": "self_leave"},
+        request=request,
+    )
+
     return MessageResponse(message="Berhasil keluar dari workspace.")
 
 
@@ -385,6 +439,7 @@ def update_member_role(
     workspace_id: uuid.UUID,
     user_id: uuid.UUID,
     data: WorkspaceMemberRoleUpdate,
+    request: Request,
     membership: Annotated[
         WorkspaceMember,
         Depends(
@@ -439,9 +494,22 @@ def update_member_role(
                 detail="Admin hanya dapat mengubah role menjadi DEVELOPER atau VIEWER.",
             )
 
+    old_role = target_member.role
     target_member.role = data.role.value
     db.commit()
     db.refresh(target_member)
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.WORKSPACE_ROLE_CHANGED,
+        resource_type="workspace_member",
+        status=AuditStatus.SUCCESS,
+        workspace_id=workspace_id,
+        user_id=membership.user_id,
+        resource_id=str(target_member.id),
+        metadata={"target_user_id": str(target_member.user_id), "old_role": old_role, "new_role": target_member.role},
+        request=request,
+    )
 
     return WorkspaceMemberResponse(
         id=target_member.id,
@@ -465,6 +533,7 @@ def update_member_role(
 def remove_workspace_member(
     workspace_id: uuid.UUID,
     user_id: uuid.UUID,
+    request: Request,
     membership: Annotated[
         WorkspaceMember,
         Depends(
@@ -510,5 +579,17 @@ def remove_workspace_member(
 
     db.delete(target_member)
     db.commit()
+
+    audit = AuditService(db)
+    audit.log(
+        action=AuditAction.WORKSPACE_MEMBER_REMOVED,
+        resource_type="workspace_member",
+        status=AuditStatus.SUCCESS,
+        workspace_id=workspace_id,
+        user_id=membership.user_id,
+        resource_id=str(user_id),
+        metadata={"target_user_id": str(user_id)},
+        request=request,
+    )
 
     return MessageResponse(message="Member berhasil dihapus dari workspace.")

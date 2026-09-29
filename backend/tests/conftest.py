@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.models.base import Base
 from app.core.database import get_db
+from app.core.rate_limit import limiter_instance
 from app.main import app
 
 # Use in-memory SQLite for fast, isolated unit and integration testing
@@ -17,6 +18,14 @@ engine = create_engine(
     poolclass=StaticPool,
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def reset_rate_limiter():
+    """Resets in-memory rate limiter before and after each test."""
+    limiter_instance.reset()
+    yield
+    limiter_instance.reset()
 
 
 @pytest.fixture(scope="function")

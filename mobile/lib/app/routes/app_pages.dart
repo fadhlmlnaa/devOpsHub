@@ -18,6 +18,9 @@ import '../../modules/deployment/views/deployment_dashboard_view.dart';
 import '../../modules/backup/views/backup_dashboard_view.dart';
 import '../../modules/alerts/views/alert_dashboard_view.dart';
 import '../../modules/alerts/views/notification_list_view.dart';
+import '../../data/services/audit_service.dart';
+import '../../modules/audit/controllers/audit_controller.dart';
+import '../../modules/audit/views/audit_log_list_view.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -113,6 +116,20 @@ class AppPages {
         final wsId = Get.parameters['id'] ?? '';
         return NotificationListView(workspaceId: wsId);
       },
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.auditLogs,
+      page: () => const AuditLogListView(),
+      binding: BindingsBuilder(() {
+        final wsId = Get.parameters['id'] ?? '';
+        Get.put<AuditController>(
+          AuditController(
+            auditService: Get.find<AuditService>(),
+            workspaceId: wsId,
+          ),
+        );
+      }),
       transition: Transition.rightToLeft,
     ),
   ];

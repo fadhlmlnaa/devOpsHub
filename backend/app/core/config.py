@@ -57,11 +57,31 @@ class Settings(BaseSettings):
     ALERT_ENABLE_BACKGROUND_SCHEDULER: bool = True
     MAX_NOTIFICATIONS_LIMIT: int = 100
 
+    # Security Hardening & Rate Limiting (Step 14)
+    CORS_ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8000,http://127.0.0.1:3000,http://127.0.0.1:8000"
+    SECURITY_HEADERS_ENABLED: bool = True
+    AUTH_RATE_LIMIT_ENABLED: bool = True
+    AUTH_LOGIN_RATE_LIMIT: int = 10  # max requests per minute per IP
+    AUTH_REGISTER_RATE_LIMIT: int = 5  # max requests per minute per IP
+    AUTH_REFRESH_RATE_LIMIT: int = 20  # max requests per minute per IP
+    OPERATION_RATE_LIMIT: int = 30  # max requests per minute per IP for sensitive operations
+
+    # Audit Logging (Step 14)
+    AUDIT_LOG_ENABLED: bool = True
+    AUDIT_DEFAULT_LIMIT: int = 50
+    AUDIT_MAX_LIMIT: int = 100
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @property
+    def cors_origins(self) -> list[str]:
+        if not self.CORS_ALLOWED_ORIGINS:
+            return ["http://localhost:3000", "http://127.0.0.1:3000"]
+        return [origin.strip() for origin in self.CORS_ALLOWED_ORIGINS.split(",") if origin.strip()]
 
     @property
     def database_url(self) -> str:

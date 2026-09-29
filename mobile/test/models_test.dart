@@ -14,6 +14,7 @@ import 'package:devops_hub/data/models/docker_model.dart';
 import 'package:devops_hub/data/models/deployment_model.dart';
 import 'package:devops_hub/data/models/backup_model.dart';
 import 'package:devops_hub/data/models/alert_model.dart';
+import 'package:devops_hub/data/models/audit_log_model.dart';
 import 'package:devops_hub/core/utils/formatters.dart';
 
 void main() {
@@ -855,6 +856,51 @@ void main() {
 
       final count = UnreadNotificationCountModel.fromJson({'unread_count': 5});
       expect(count.unreadCount, 5);
+    });
+  });
+
+  group('AuditLogModel JSON serialization', () {
+    test('fromJson correctly parses AuditLog and AuditLogListResponse', () {
+      final json = {
+        'id': 'audit-uuid-1',
+        'workspace_id': 'ws-uuid-1',
+        'user_id': 'user-uuid-1',
+        'user': {
+          'id': 'user-uuid-1',
+          'name': 'Audit Admin',
+          'email': 'admin@devops.hub',
+        },
+        'action': 'SERVICE_RESTARTED',
+        'resource_type': 'service',
+        'resource_id': 'nginx.service',
+        'status': 'SUCCESS',
+        'ip_address': '192.168.1.10',
+        'user_agent': 'FlutterMobile/1.0',
+        'metadata': {
+          'service': 'nginx.service',
+          'password': '********',
+        },
+        'created_at': '2026-09-29T10:00:00Z',
+      };
+
+      final log = AuditLogModel.fromJson(json);
+      expect(log.id, 'audit-uuid-1');
+      expect(log.action, 'SERVICE_RESTARTED');
+      expect(log.status, 'SUCCESS');
+      expect(log.user?.name, 'Audit Admin');
+      expect(log.metadata?['password'], '********');
+
+      final listJson = {
+        'items': [json],
+        'total': 1,
+        'limit': 50,
+        'offset': 0,
+      };
+
+      final listResp = AuditLogListResponseModel.fromJson(listJson);
+      expect(listResp.total, 1);
+      expect(listResp.items.length, 1);
+      expect(listResp.items.first.action, 'SERVICE_RESTARTED');
     });
   });
 }
