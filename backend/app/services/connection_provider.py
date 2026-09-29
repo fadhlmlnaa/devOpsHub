@@ -50,6 +50,19 @@ class ConnectionProvider(ABC):
         """Fetches basic server information (OS, kernel, uptime, arch)."""
         pass
 
+    @abstractmethod
+    async def collect_raw_metrics(
+        self,
+        host: str,
+        port: int,
+        username: str,
+        password: Optional[str] = None,
+        private_key: Optional[str] = None,
+        passphrase: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Collects raw monitoring telemetry sections over a single connection session."""
+        pass
+
 
 class SSHProvider(ConnectionProvider):
     """Asynchronous SSH connection provider powered by AsyncSSH."""
@@ -233,6 +246,108 @@ class SSHProvider(ConnectionProvider):
             logger.warning("Partial server info extraction failed: %s", type(e).__name__)
 
         return info
+
+    async def collect_raw_metrics(
+        self,
+        host: str,
+        port: int,
+        username: str,
+        password: Optional[str] = None,
+        private_key: Optional[str] = None,
+        passphrase: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Executes predefined safe batch probe commands over a single SSH connection."""
+        conn = None
+        connect_timeout = getattr(settings, "MONITORING_CONNECT_TIMEOUT", 5)
+        command_timeout = getattr(settings, "MONITORING_COMMAND_TIMEOUT", 5)
+
+        try:
+            # Single SSH connection for all metrics
+            conn = await asyncio.wait_for(
+                self._create_connection(
+                    host=host,
+                    port=port,
+                    username=username,
+                    password=password,
+                    private_key=private_key,
+                    passphrase=passphrase,
+                ),
+                timeout=connect_timeout,
+            )
+
+            # Predefined safe telemetry extraction script
+            batch_cmd = (
+                'echo "===CPU==="; head -n 20 /proc/stat 2>/dev/null || top -l 1 -n 0 2>/dev/null\n'
+                'echo "===CPUINFO==="; nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || grep -c ^processor /proc/cpuinfo 2>/dev/null\n'
+                'echo "===MEM==="; head -n 30 /proc/meminfo 2>/dev/null || (sysctl hw.memsize 2>/dev/null; vm_stat 2>/dev/null)\n'
+                'echo "===DISK==="; df -k / 2>/dev/null\n'
+                'echo "===LOAD==="; cat /proc/loadavg 2>/dev/null || sysctl -n vm.loadavg 2>/dev/null || uptime 2>/dev/null\n'
+                'echo "===UPTIME==="; cat /proc/uptime 2>/dev/null || uptime 2>/dev/null\n'
+                'echo "===SYSTEM==="; hostname 2>/dev/null; echo "---"; cat /etc/os-release 2>/dev/null || uname -s 2>/dev/null; echo "---"; uname -r 2>/dev/null; echo "---"; uname -m 2>/dev/null\n'
+                'echo "===NET==="; ip -j addr 2>/dev/null || ip addr 2>/dev/null || ifconfig 2>/dev/null\n'
+            )
+
+            res = await asyncio.wait_for(
+                conn.run(batch_cmd, check=False),
+                timeout=command_timeout,
+            )
+
+            raw_output = res.stdout or ""
+            sections: Dict[str, str] = {}
+            current_section = None
+            current_lines = []
+
+            for line in raw_output.splitlines():
+                if line.startswith("===") and line.endswith("==="):
+                    if current_section:
+                        sections[current_section] = "\n".join(current_lines).strip()
+                    current_section = line.replace("===", "").strip()
+                    current_lines = []
+                else:
+                    current_lines.append(line)
+
+            if current_section:
+                sections[current_section] = "\n".join(current_lines).strip()
+
+            return {
+                "success": True,
+                "status": "ONLINE",
+                "sections": sections,
+                "error": None,
+            }
+
+        except asyncssh.PermissionDenied:
+            return {
+                "success": False,
+                "status": "UNKNOWN",
+                "sections": {},
+                "error": "Autentikasi SSH ditolak (Permission Denied).",
+            }
+        except (asyncio.TimeoutError, TimeoutError):
+            return {
+                "success": False,
+                "status": "OFFLINE",
+                "sections": {},
+                "error": f"SSH connection timeout ({connect_timeout}s). Server tidak merespons.",
+            }
+        except (OSError, ConnectionRefusedError, asyncssh.Error) as e:
+            return {
+                "success": False,
+                "status": "OFFLINE",
+                "sections": {},
+                "error": f"Gagal terhubung ke host {host}:{port} ({type(e).__name__}).",
+            }
+        except Exception as e:
+            logger.error("Error during raw metrics collection: %s", type(e).__name__)
+            return {
+                "success": False,
+                "status": "UNKNOWN",
+                "sections": {},
+                "error": f"Terjadi kesalahan monitoring: {str(e)}",
+            }
+        finally:
+            if conn:
+                conn.close()
 
 
 # Provider Factory

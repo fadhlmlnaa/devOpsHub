@@ -1,5 +1,6 @@
 import '../models/server_model.dart';
 import '../models/connection_test_model.dart';
+import '../models/monitoring_metrics_model.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_exception.dart';
 
@@ -136,5 +137,18 @@ class ServerService {
       '/workspaces/$workspaceId/servers/$serverId/connection-test',
     );
     return ConnectionTestModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<ServerMetricsModel> getServerMetrics(String workspaceId, String serverId) async {
+    if (workspaceId.trim().isEmpty || serverId.trim().isEmpty) {
+      throw ApiException(message: 'ID Workspace atau Server tidak valid.');
+    }
+    final response = await apiClient.get(
+      '/workspaces/$workspaceId/servers/$serverId/metrics',
+    );
+    if (response.data is Map<String, dynamic>) {
+      return ServerMetricsModel.fromJson(response.data as Map<String, dynamic>);
+    }
+    throw ApiException(message: 'Format data monitoring tidak valid.');
   }
 }

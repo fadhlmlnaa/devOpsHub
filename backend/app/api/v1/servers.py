@@ -17,8 +17,10 @@ from app.schemas.server import (
     EnvironmentSummary,
     ConnectionTestResponse,
 )
+from app.schemas.monitoring import ServerMetricsResponse
 from app.services.encryption import secret_encryption_service
 from app.services.connection_provider import get_connection_provider
+from app.services.monitoring import MonitoringService
 
 router = APIRouter(
     prefix="/workspaces/{workspace_id}/servers",
@@ -412,3 +414,47 @@ async def test_server_connection(
         status=result.status,
         server_info=result.server_info,
     )
+
+
+@router.get(
+    "/{server_id}/metrics",
+    response_model=ServerMetricsResponse,
+    summary="Real-Time Server Metrics Monitoring",
+)
+async def get_server_metrics(
+    workspace_id: uuid.UUID,
+    server_id: uuid.UUID,
+    auth: Annotated[
+        tuple[User, WorkspaceRole],
+        Depends(
+            RequireWorkspaceRole([
+                WorkspaceRole.OWNER,
+                WorkspaceRole.ADMIN,
+                WorkspaceRole.DEVELOPER,
+                WorkspaceRole.VIEWER,
+            ])
+        ),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Mengambil metrik real-time sistem server (CPU, RAM, Disk, Load Average, Uptime, OS, Network).
+    
+    Menggunakan koneksi tunggal terenkripsi dan safe predefined probing script.
+    """
+    server = (
+        db.query(Server)
+        .filter(
+            Server.id == server_id,
+            Server.workspace_id == workspace_id,
+        )
+        .first()
+    )
+    if not server:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Server tidak ditemukan dalam workspace ini.",
+        )
+
+    service = MonitoringService()
+    return await service.get_server_metrics(server)
+

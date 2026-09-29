@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../data/models/server_model.dart';
 import '../../../data/models/connection_test_model.dart';
+import '../../../data/models/monitoring_metrics_model.dart';
 import '../../../data/services/server_service.dart';
 
 class ServerController extends GetxController {
@@ -10,10 +11,13 @@ class ServerController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isCreating = false.obs;
   final RxBool isTestingConnection = false.obs;
+  final RxBool isLoadingMetrics = false.obs;
   final RxList<ServerModel> servers = <ServerModel>[].obs;
   final Rxn<ServerModel> selectedServer = Rxn<ServerModel>();
   final Rxn<ConnectionTestModel> connectionTestResult = Rxn<ConnectionTestModel>();
+  final Rxn<ServerMetricsModel> serverMetrics = Rxn<ServerMetricsModel>();
   final RxnString errorMessage = RxnString();
+  final RxnString metricsErrorMessage = RxnString();
 
   ServerController({required this.serverService});
 
@@ -47,6 +51,30 @@ class ServerController extends GetxController {
       errorMessage.value = 'Gagal memuat detail server.';
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> loadServerMetrics(String workspaceId, String serverId, {bool silent = false}) async {
+    try {
+      if (!silent) {
+        isLoadingMetrics.value = true;
+      }
+      metricsErrorMessage.value = null;
+
+      final metrics = await serverService.getServerMetrics(workspaceId, serverId);
+      serverMetrics.value = metrics;
+
+      // Automatically sync online/offline status in server model
+      _updateStatusInList(serverId, metrics.status);
+    } on ApiException catch (e) {
+      metricsErrorMessage.value = e.message;
+      if (e.message.toLowerCase().contains('timeout') || e.message.toLowerCase().contains('gagal terhubung')) {
+        _updateStatusInList(serverId, 'OFFLINE');
+      }
+    } catch (_) {
+      metricsErrorMessage.value = 'Gagal memuat metrik server.';
+    } finally {
+      isLoadingMetrics.value = false;
     }
   }
 

@@ -138,14 +138,32 @@ flutter test
 
 ---
 
-### Skenario Uji 10: Auto-Refresh Token & Sesi Aman
+### Skenario Uji 10: Real-time Server Monitoring & Telemetry Dashboard (Step 07)
+1. Buka detail server yang berstatus `ONLINE` atau sudah dikonfigurasi kredensial SSH yang valid.
+2. Halaman **Server Detail** akan otomatis memuat metrik telemetri langsung (*Real-time Metrics*).
+3. Verifikasi widget metrik menampilkan data akurat:
+   - **CPU**: Persentase penggunaan CPU (0-100%), visual progress bar dinamis, dan jumlah CPU cores.
+   - **Memory (RAM)**: Persentase penggunaan RAM, visual bar, detail terpakai vs total dalam format gigabytes (contoh `4.2 GB / 16.0 GB`).
+   - **Disk Storage**: Persentase kapasitas root mount point `/`, terpakai vs total dalam GB/TB.
+   - **Load Average**: Nilai load average untuk interval 1 menit, 5 menit, dan 15 menit.
+   - **System Specifications**: Hostname, OS distribution, Linux kernel, CPU architecture, dan Uptime.
+   - **Network Interfaces**: Daftar antarmuka jaringan terdeteksi beserta IP private (jika ada).
+4. Tarik layar ke bawah (**Pull to Refresh**) atau klik tombol **🔄 Refresh** di kanan atas kartu metrik:
+   - Data telemetri terbaru akan diperbarui langsung via 1 sesi eksekusi SSH terisolasi.
+5. Uji skenario **Server Offline**:
+   - Jika server target tidak dapat dijangkau dalam waktu 5 detik (timeout) atau kredensial salah, status server menjadi `OFFLINE` atau `UNKNOWN`.
+   - UI menampilkan status offline yang jelas, waktu terakhir berhasil diperiksa, dan tombol **Coba Lagi (Retry)**.
+
+---
+
+### Skenario Uji 11: Auto-Refresh Token & Sesi Aman
 1. Sesi pengguna (Access Token & Refresh Token) tersimpan di storage terenkripsi perangkat (`flutter_secure_storage`).
 2. Jika Access Token kadaluarsa (401), `ApiClient` secara transparan memicu endpoint `/auth/refresh` di background, memperbarui token di storage, dan mengulang request data tanpa mengganggu interaksi pengguna.
 3. Jika Refresh Token juga kadaluarsa atau di-revoke, sesi dibersihkan dan pengguna diarahkan kembali ke layar Login.
 
 ---
 
-### Skenario Uji 11: Logout
+### Skenario Uji 12: Logout
 1. Klik tombol **Logout** di AppBar.
 2. Dialog konfirmasi muncul.
 3. Klik **"Logout"**.
@@ -156,7 +174,7 @@ flutter test
 ## 🧪 Struktur Unit & Widget Test Otomatis (Mobile)
 
 File test terletak di folder `mobile/test/`:
-- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk `UserModel`, `AuthTokenModel`, `WorkspaceModel`, `WorkspaceMemberModel`, `EnvironmentModel`, `ServerModel`, dan `ConnectionTestModel`.
+- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk `UserModel`, `AuthTokenModel`, `WorkspaceModel`, `WorkspaceMemberModel`, `EnvironmentModel`, `ServerModel`, `ConnectionTestModel`, dan `ServerMetricsModel` (Step 07).
 - `api_exception_test.dart`: Pengujian parsing error backend, handling status code HTTP (400, 401, 403, 404, 409, 422, 500) dan timeout connection.
 - `widgets_test.dart`: Pengujian rendering dan event listener pada Base Widgets (`AppButton`, `AppTextField`, `AppStatusBadge`, `AppCard`).
 - `widget_test.dart`: Pengujian inisialisasi aplikasi `DevOpsHubApp` dan halaman startup.
@@ -165,3 +183,4 @@ Jalankan seluruh test:
 ```bash
 cd mobile && flutter test
 ```
+

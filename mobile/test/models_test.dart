@@ -7,6 +7,8 @@ import 'package:devops_hub/data/models/workspace_member_model.dart';
 import 'package:devops_hub/data/models/environment_model.dart';
 import 'package:devops_hub/data/models/server_model.dart';
 import 'package:devops_hub/data/models/connection_test_model.dart';
+import 'package:devops_hub/data/models/monitoring_metrics_model.dart';
+import 'package:devops_hub/core/utils/formatters.dart';
 
 void main() {
   group('UserModel JSON serialization', () {
@@ -186,6 +188,90 @@ void main() {
       expect(result.serverInfo?['kernel'], '6.8.0-40-generic');
       expect(result.serverInfo?['architecture'], 'x86_64');
       expect(result.serverInfo?['uptime'], '18 days, 4 hours');
+    });
+  });
+
+  group('ServerMetricsModel JSON serialization', () {
+    test('fromJson parses complete telemetry dataset', () {
+      final json = {
+        'server_id': '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c',
+        'status': 'ONLINE',
+        'checked_at': '2026-09-29T10:00:00Z',
+        'cpu': {
+          'usage_percent': 34.5,
+          'cores': 4,
+        },
+        'memory': {
+          'total_bytes': 8589934592,
+          'used_bytes': 4294967296,
+          'available_bytes': 4294967296,
+          'usage_percent': 50.0,
+        },
+        'disk': {
+          'mount_point': '/',
+          'total_bytes': 107374182400,
+          'used_bytes': 75161927680,
+          'available_bytes': 32212254720,
+          'usage_percent': 70.0,
+        },
+        'load': {
+          'load_1m': 0.82,
+          'load_5m': 0.64,
+          'load_15m': 0.51,
+        },
+        'uptime_seconds': 1555200,
+        'system': {
+          'hostname': 'prod-odoo',
+          'operating_system': 'Ubuntu 24.04.3 LTS',
+          'kernel': '6.8.0',
+          'architecture': 'x86_64',
+        },
+        'network': {
+          'interfaces': [
+            {
+              'name': 'eth0',
+              'addresses': ['10.0.0.10'],
+            },
+          ],
+        },
+      };
+
+      final metrics = ServerMetricsModel.fromJson(json);
+      expect(metrics.serverId, '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c');
+      expect(metrics.status, 'ONLINE');
+      expect(metrics.cpu?.usagePercent, 34.5);
+      expect(metrics.cpu?.cores, 4);
+      expect(metrics.memory?.totalBytes, 8589934592);
+      expect(metrics.memory?.usagePercent, 50.0);
+      expect(metrics.disk?.mountPoint, '/');
+      expect(metrics.disk?.usagePercent, 70.0);
+      expect(metrics.load?.load1m, 0.82);
+      expect(metrics.uptimeSeconds, 1555200);
+      expect(metrics.system?.hostname, 'prod-odoo');
+      expect(metrics.network?.interfaces.first.name, 'eth0');
+    });
+  });
+
+  group('AppFormatters Utility Tests', () {
+    test('formatBytes formats properly across scales', () {
+      expect(AppFormatters.formatBytes(500), '500.0 B');
+      expect(AppFormatters.formatBytes(1048576), '1.0 MB');
+      expect(AppFormatters.formatBytes(8589934592), '8.0 GB');
+      expect(AppFormatters.formatBytes(1099511627776), '1.0 TB');
+      expect(AppFormatters.formatBytes(null), '0 B');
+    });
+
+    test('formatPercentage formats decimal percentages', () {
+      expect(AppFormatters.formatPercentage(34.567), '34.6%');
+      expect(AppFormatters.formatPercentage(100.0), '100.0%');
+      expect(AppFormatters.formatPercentage(null), '-');
+    });
+
+    test('formatUptime formats seconds into human readable duration', () {
+      expect(AppFormatters.formatUptime(86400 * 3 + 3600 * 2 + 60 * 15), '3d 2h 15m');
+      expect(AppFormatters.formatUptime(3600 * 5), '5h');
+      expect(AppFormatters.formatUptime(45), '45s');
+      expect(AppFormatters.formatUptime(null), 'Baru menyala');
     });
   });
 }

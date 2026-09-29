@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     CREDENTIAL_ENCRYPTION_KEY: str = "vXv6c8b-vHqIeD_66QvG7F-80hZ-0sX0lJ3Y1kQ9cZg="
     SSH_CONNECT_TIMEOUT: int = 10
     SSH_COMMAND_TIMEOUT: int = 15
+    MONITORING_CONNECT_TIMEOUT: int = 5
+    MONITORING_COMMAND_TIMEOUT: int = 5
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -110,11 +110,13 @@ Buka Aplikasi (Splash)
    - Endpoint `POST /api/v1/workspaces/{workspace_id}/servers/{server_id}/connection-test` melakukan validasi jangkauan jaringan, autentikasi SSH, dan mengekstrak informasi dasar server (`hostname`, `operating_system`, `kernel`, `architecture`, `uptime`).
    - Dilengkapi strict timeout: `SSH_CONNECT_TIMEOUT` dan `SSH_COMMAND_TIMEOUT`.
    - **Tidak ada arbitrary shell endpoint**: Keamanan terjamin tanpa celah eksekusi arbitrary command dari client.
-5. **Mobile UI / UX (Flutter)**:
-   - Environment list & modal penambahan environment.
-   - Server list dengan status badge (🟢 ONLINE, 🔴 OFFLINE, ⚪ UNKNOWN).
-   - Server detail dengan live action **Test Connection** dan visualisasi server system info.
-   - Form penambahan server dengan selector tipe autentikasi (Password / Private Key).
+6. **Step 07 — Server Monitoring & System Metrics**:
+   - Real-time telemetry monitoring: CPU usage & cores count, RAM / Memory bytes & percentage, Disk storage `/` bytes & percentage, Load Average (1m, 5m, 15m), Uptime in seconds & human-readable format, System specification (OS, Kernel, Arch, Hostname), and Network interfaces.
+   - Endpoint: `GET /api/v1/workspaces/{workspace_id}/servers/{server_id}/metrics`.
+   - Single SSH Connection Session: Menjalankan predefined batch telemetry probe script dengan overhead jaringan dan latensi minimal (<0.1s).
+   - Partial Metric Resilience: Kegagalan salah satu metrik (misal disk format) tidak menggagalkan metrik lainnya.
+   - Zero Database Bloat: Tidak melakukan insert data historis per request.
+   - Flutter Live Dashboard: Visual progress bar (cyan/mint), gauge metrics, offline diagnostics banner, manual refresh & pull-to-refresh.
 
 ---
 
