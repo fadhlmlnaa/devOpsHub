@@ -43,7 +43,7 @@ class AlertEvaluationService:
     def __init__(self, db: Session):
         self.db = db
         self.notification_service = NotificationService(db)
-        self.monitoring_service = MonitoringService(db)
+        self.monitoring_service = MonitoringService()
         self.redactor = SecretRedactor()
 
     def get_target_servers(self, rule: AlertRule) -> List[Server]:
@@ -98,9 +98,7 @@ class AlertEvaluationService:
                 metrics = metric_override
             else:
                 try:
-                    res = await self.monitoring_service.get_server_metrics(
-                        rule.workspace_id, server.id
-                    )
+                    res = await self.monitoring_service.get_server_metrics(server)
                     metrics = res.model_dump()
                 except Exception as e:
                     logger.warning(f"Could not fetch metrics for alert evaluation on server {server.name}: {e}")
