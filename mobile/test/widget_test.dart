@@ -2,11 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:devops_hub/main.dart';
 
 void main() {
-  testWidgets('Initial screen renders DevOps Platform and status',
+  testWidgets('DevOpsHubApp initializes and shows splash screen branding',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const DevOpsPlatformApp());
+    await tester.pumpWidget(const DevOpsHubApp());
+    expect(find.text('DevOpsHub'), findsOneWidget);
+    expect(find.text('Unified DevOps & Infrastructure Control'), findsOneWidget);
 
-    expect(find.text('DevOps Platform'), findsAtLeastNWidgets(1));
-    expect(find.text('Not Connected'), findsOneWidget);
+    // Let the splash controller delay timer finish
+    await tester.pump(const Duration(seconds: 1));
   });
 }

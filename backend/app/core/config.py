@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     BACKEND_PORT: int = 8000
     ENVIRONMENT: str = "development"
 
+    # JWT Authentication
+    JWT_SECRET_KEY: str = "change_me_super_secret_jwt_key_at_least_32_chars"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

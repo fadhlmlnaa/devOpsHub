@@ -9,6 +9,7 @@ from app.models.base import Base
 
 if TYPE_CHECKING:
     from app.models.workspace_member import WorkspaceMember
+    from app.models.refresh_token import RefreshToken
 
 
 class User(Base):
@@ -53,6 +54,11 @@ class User(Base):
     # Relationships
     memberships: Mapped[List["WorkspaceMember"]] = relationship(
         "WorkspaceMember",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    refresh_tokens: Mapped[List["RefreshToken"]] = relationship(
+        "RefreshToken",
         back_populates="user",
         cascade="all, delete-orphan",
     )
