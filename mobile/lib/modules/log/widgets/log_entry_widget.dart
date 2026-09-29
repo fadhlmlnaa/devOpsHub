@@ -3,11 +3,19 @@ import '../../../data/models/log_model.dart';
 
 class LogEntryWidget extends StatelessWidget {
   final LogEntryModel entry;
+  final int lineNumber;
+  final bool showLineNumber;
+  final bool showTimestamp;
+  final bool wrap;
   final VoidCallback onCopy;
 
   const LogEntryWidget({
     super.key,
     required this.entry,
+    required this.lineNumber,
+    this.showLineNumber = true,
+    this.showTimestamp = true,
+    this.wrap = true,
     required this.onCopy,
   });
 
@@ -17,103 +25,113 @@ class LogEntryWidget extends StatelessWidget {
       case 'ALERT':
       case 'CRITICAL':
       case 'ERROR':
-        return Colors.redAccent;
+        return const Color(0xFFFF7B72); // Bright Terminal Red
       case 'WARNING':
+        return const Color(0xFFFFA657); // Terminal Amber
       case 'NOTICE':
-        return Colors.amberAccent;
       case 'INFO':
-        return Colors.tealAccent;
+        return const Color(0xFF7EE787); // Terminal Green
       case 'DEBUG':
-        return Colors.blueGrey;
+        return const Color(0xFFD2A8FF); // Terminal Purple
       default:
-        return Colors.white54;
+        return const Color(0xFF8B949E); // Terminal Gray
     }
   }
 
-  String _formatDateTime(DateTime dt) {
-    final y = dt.year.toString().padLeft(4, '0');
-    final m = dt.month.toString().padLeft(2, '0');
-    final d = dt.day.toString().padLeft(2, '0');
+  String _formatTimeOnly(DateTime dt) {
     final hh = dt.hour.toString().padLeft(2, '0');
     final mm = dt.minute.toString().padLeft(2, '0');
     final ss = dt.second.toString().padLeft(2, '0');
-    return '$y-$m-$d $hh:$mm:$ss';
+    return '$hh:$mm:$ss';
   }
 
   @override
   Widget build(BuildContext context) {
     final color = _getPriorityColor(entry.priority);
-    final timeStr = entry.timestamp != null ? _formatDateTime(entry.timestamp!) : null;
+    final timeStr = entry.timestamp != null && showTimestamp
+        ? _formatTimeOnly(entry.timestamp!)
+        : null;
+
+    final isError = entry.priority.toUpperCase() == 'ERROR' ||
+        entry.priority.toUpperCase() == 'CRITICAL' ||
+        entry.priority.toUpperCase() == 'EMERGENCY';
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: entry.priority.toUpperCase() == 'ERROR' ||
-                  entry.priority.toUpperCase() == 'CRITICAL'
-              ? Colors.redAccent.withValues(alpha: 0.3)
-              : Colors.white.withValues(alpha: 0.06),
+        color: isError
+            ? const Color(0xFFFF7B72).withValues(alpha: 0.07)
+            : Colors.transparent,
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.white.withValues(alpha: 0.03),
+            width: 0.5,
+          ),
         ),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              // Priority tag
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: color.withValues(alpha: 0.4)),
-                ),
-                child: Text(
-                  entry.priority.toUpperCase(),
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
+          // 1. Line Number
+          if (showLineNumber)
+            Container(
+              width: 38,
+              alignment: Alignment.topRight,
+              padding: const EdgeInsets.only(right: 8),
+              child: Text(
+                '$lineNumber',
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  color: Color(0xFF484F58),
+                  height: 1.45,
                 ),
               ),
-              const SizedBox(width: 8),
-              if (timeStr != null)
-                Text(
-                  timeStr,
-                  style: const TextStyle(
-                    color: Colors.white38,
-                    fontSize: 11,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              const Spacer(),
-              InkWell(
-                borderRadius: BorderRadius.circular(4),
-                onTap: onCopy,
-                child: const Padding(
-                  padding: EdgeInsets.all(4),
-                  child: Icon(
-                    Icons.copy_rounded,
-                    size: 14,
-                    color: Colors.white38,
-                  ),
+            ),
+
+          // 2. Timestamp
+          if (timeStr != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Text(
+                timeStr,
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  color: Color(0xFF79C0FF),
+                  height: 1.45,
                 ),
               ),
-            ],
+            ),
+
+          // 3. Priority Tag
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Text(
+              '[${entry.priority.toUpperCase().substring(0, entry.priority.length > 4 ? 4 : entry.priority.length)}]',
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: color,
+                height: 1.45,
+              ),
+            ),
           ),
-          const SizedBox(height: 8),
-          // Monospace Message
-          SelectableText(
-            entry.message,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontFamily: 'monospace',
-              height: 1.4,
+
+          // 4. Message Content
+          Expanded(
+            child: InkWell(
+              onLongPress: onCopy,
+              child: SelectableText(
+                entry.message,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  color: isError ? const Color(0xFFFFDCD7) : const Color(0xFFE6EDF3),
+                  height: 1.45,
+                ),
+              ),
             ),
           ),
         ],
@@ -121,3 +139,4 @@ class LogEntryWidget extends StatelessWidget {
     );
   }
 }
+

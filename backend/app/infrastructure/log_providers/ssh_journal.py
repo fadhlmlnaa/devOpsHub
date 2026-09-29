@@ -134,30 +134,54 @@ class SSHJournalLogProvider(LogProvider):
                     error="SYSTEMD_UNAVAILABLE",
                 )
 
-            # Build command: try direct journalctl first, fallback to sudo -n if needed
-            cmd = f"journalctl -u {service_name} -n {clamped_lines} {since_arg} --no-pager -o json"
-            res = await asyncio.wait_for(
-                conn.run(cmd, check=False),
-                timeout=self.command_timeout,
-            )
+            # Build command list to try:
+            # 1. sudo -n journalctl with JSON output
+            # 2. direct journalctl with JSON output
+            # 3. sudo -n journalctl plain text
+            # 4. direct journalctl plain text
 
-            if res.exit_status != 0 and "permission denied" in (res.stderr or "").lower():
-                # Try sudo -n
-                sudo_cmd = f"sudo -n journalctl -u {service_name} -n {clamped_lines} {since_arg} --no-pager -o json"
-                res = await asyncio.wait_for(
-                    conn.run(sudo_cmd, check=False),
-                    timeout=self.command_timeout,
-                )
+            base_name = service_name[:-8] if service_name.endswith(".service") else service_name
+            unit_args = f"-u {service_name}"
+            if base_name != service_name:
+                unit_args += f" -u {base_name}"
 
-            stdout_text = res.stdout or ""
-            raw_lines = [l for l in stdout_text.strip().splitlines() if l.strip()]
+            commands_to_try = [
+                f"sudo -n journalctl {unit_args} -n {clamped_lines} {since_arg} --no-pager -a -o json",
+                f"journalctl {unit_args} -n {clamped_lines} {since_arg} --no-pager -a -o json",
+                f"sudo -n journalctl {unit_args} -n {clamped_lines} {since_arg} --no-pager -a",
+                f"journalctl {unit_args} -n {clamped_lines} {since_arg} --no-pager -a",
+            ]
+
+            stdout_text = ""
+            is_json_format = True
+
+            for idx, cmd in enumerate(commands_to_try):
+                try:
+                    res = await asyncio.wait_for(
+                        conn.run(cmd, check=False),
+                        timeout=self.command_timeout,
+                    )
+                    out = (res.stdout or "").strip()
+                    if out:
+                        stdout_text = out
+                        is_json_format = (idx < 2) # First 2 commands are JSON
+                        break
+                except Exception as e:
+                    logger.debug("Command failed %s: %s", cmd, e)
+                    continue
+
+            raw_lines = [l for l in stdout_text.splitlines() if l.strip()]
 
             entries: List[RawLogEntry] = []
             total_bytes = 0
             is_truncated = False
 
             for line in raw_lines:
-                entry = self._parse_json_line(line)
+                if is_json_format and line.startswith("{"):
+                    entry = self._parse_json_line(line)
+                else:
+                    entry = self._parse_plain_line(line)
+
                 redacted_msg = secret_redactor.redact(entry.message)
                 entry.message = redacted_msg
 
@@ -241,9 +265,36 @@ class SSHJournalLogProvider(LogProvider):
                 message=message,
             )
         except Exception:
-            # Fallback for plain text log line
-            return RawLogEntry(
-                timestamp=None,
-                priority="UNKNOWN",
-                message=line,
-            )
+            return self._parse_plain_line(line)
+
+    def _parse_plain_line(self, line: str) -> RawLogEntry:
+        # Detect priority keywords in message
+        upper_line = line.upper()
+        priority = "UNKNOWN"
+        if any(w in upper_line for w in ["EMERG", "ALERT", "CRIT"]):
+            priority = "CRITICAL"
+        elif any(w in upper_line for w in ["ERROR", "ERR", "FAIL", "FATAL", "EXCEPTION"]):
+            priority = "ERROR"
+        elif any(w in upper_line for w in ["WARN", "WARNING"]):
+            priority = "WARNING"
+        elif "DEBUG" in upper_line:
+            priority = "DEBUG"
+        elif any(w in upper_line for w in ["INFO", "NOTICE"]):
+            priority = "INFO"
+
+        # Attempt to parse syslog-style timestamp (e.g. Sep 29 10:30:01) or ISO timestamp
+        timestamp = None
+        # ISO timestamp pattern at line start (e.g. 2026-09-29T10:30:01)
+        iso_match = re.match(r"^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?)", line)
+        if iso_match:
+            try:
+                raw_ts = iso_match.group(1).replace(" ", "T")
+                timestamp = datetime.fromisoformat(raw_ts).replace(tzinfo=timezone.utc)
+            except Exception:
+                pass
+
+        return RawLogEntry(
+            timestamp=timestamp,
+            priority=priority,
+            message=line,
+        )

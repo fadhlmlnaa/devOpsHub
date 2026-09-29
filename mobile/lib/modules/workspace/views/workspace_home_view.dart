@@ -232,25 +232,47 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
                   const Divider(color: AppColors.border, height: 1),
                   const SizedBox(height: 20),
 
-                  // Step 07+ Placeholder Roadmap Section
-                  const Text(
-                    'DevOps Roadmap & Modules',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
+                  // DevOps Roadmap & Modules Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'DevOps Modules & Capabilities',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                        ),
+                        child: const Text('Step 09 Active', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _buildRoadmapCard(icon: Icons.terminal_rounded, title: 'SSH Terminal', step: 'Step 07')),
-                      const SizedBox(width: 12),
-                      Expanded(child: _buildRoadmapCard(icon: Icons.speed_rounded, title: 'Monitoring', step: 'Step 08')),
+                      Expanded(child: _buildRoadmapCard(icon: Icons.speed_rounded, title: 'Monitoring', step: 'Step 07', isActive: true)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildRoadmapCard(icon: Icons.miscellaneous_services_rounded, title: 'Services', step: 'Step 08', isActive: true)),
                     ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(child: _buildRoadmapCard(icon: Icons.rocket_launch_rounded, title: 'Deployments', step: 'Step 09')),
-                      const SizedBox(width: 12),
-                      Expanded(child: _buildRoadmapCard(icon: Icons.notifications_active_rounded, title: 'Alerts', step: 'Step 10')),
+                      Expanded(child: _buildRoadmapCard(icon: Icons.terminal_rounded, title: 'Systemd Logs', step: 'Step 09', isActive: true)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildRoadmapCard(icon: Icons.directions_boat_rounded, title: 'Docker', step: 'Step 10', isActive: false)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: _buildRoadmapCard(icon: Icons.rocket_launch_rounded, title: 'Deployments', step: 'Step 11', isActive: false)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildRoadmapCard(icon: Icons.notifications_active_rounded, title: 'Alerts', step: 'Step 12', isActive: false)),
                     ],
                   ),
                 ],
@@ -509,19 +531,63 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
     );
   }
 
-  Widget _buildRoadmapCard({required IconData icon, required String title, required String step}) {
+  Widget _buildRoadmapCard({
+    required IconData icon,
+    required String title,
+    required String step,
+    bool isActive = false,
+  }) {
     return AppCard(
       padding: const EdgeInsets.all(12),
+      borderColor: isActive ? AppColors.primary.withValues(alpha: 0.3) : AppColors.border,
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppColors.textMuted),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: isActive ? AppColors.primary.withValues(alpha: 0.12) : AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, size: 16, color: isActive ? AppColors.primary : AppColors.textMuted),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                Text(step, style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isActive ? AppColors.textPrimary : AppColors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isActive)
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.success,
+                        ),
+                      ),
+                  ],
+                ),
+                Text(
+                  isActive ? '$step (Ready)' : '$step (Upcoming)',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isActive ? AppColors.primary : AppColors.textMuted,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
               ],
             ),
           ),

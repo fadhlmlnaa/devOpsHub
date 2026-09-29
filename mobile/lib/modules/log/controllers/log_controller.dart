@@ -19,10 +19,42 @@ class LogController extends GetxController {
   final RxString searchQuery = ''.obs;
   final RxString errorMessage = ''.obs;
 
+  final RxBool wrapLines = true.obs;
+  final RxBool showLineNumbers = true.obs;
+  final RxBool showTimestamps = true.obs;
+  final RxBool autoScrollToBottom = false.obs;
+
+  final ScrollController scrollController = ScrollController();
+
   final RxString currentWorkspaceId = ''.obs;
   final RxString currentServerId = ''.obs;
   final RxString currentServerName = ''.obs;
   final RxString currentServiceName = ''.obs;
+
+  void toggleWrap() => wrapLines.toggle();
+  void toggleLineNumbers() => showLineNumbers.toggle();
+  void toggleTimestamps() => showTimestamps.toggle();
+  void toggleAutoScroll() => autoScrollToBottom.toggle();
+
+  void scrollToBottom() {
+    if (scrollController.hasClients) {
+      scrollController.animateTo(
+        scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  void scrollToTop() {
+    if (scrollController.hasClients) {
+      scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
 
   void initContext({
     required String workspaceId,
@@ -89,6 +121,9 @@ class LogController extends GetxController {
 
       logResponse.value = res;
       entries.assignAll(res.entries);
+      if (autoScrollToBottom.value) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
+      }
     } on ApiException catch (e) {
       errorMessage.value = e.message;
       if (!silent) {
