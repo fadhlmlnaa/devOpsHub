@@ -17,6 +17,7 @@ from app.schemas.service import (
     ServiceSummary,
 )
 from app.services.encryption import secret_encryption_service
+from app.services.provider_factory import ProviderFactory
 
 SERVICE_NAME_PATTERN = re.compile(r"^[A-Za-z0-9_.@:-]+\.service$")
 
@@ -25,7 +26,12 @@ class ServiceManagementService:
     """Business logic for Linux systemd service management."""
 
     def __init__(self, service_provider: Optional[ServiceProvider] = None):
-        self.service_provider = service_provider or SSHSystemdProvider()
+        self._custom_provider = service_provider
+
+    def _get_provider(self, server: Server, db: Optional[Session] = None) -> ServiceProvider:
+        if self._custom_provider:
+            return self._custom_provider
+        return ProviderFactory.get_service_provider(server, db)
 
     def validate_service_name(self, service_name: str) -> str:
         cleaned = service_name.strip()
@@ -40,6 +46,9 @@ class ServiceManagementService:
         return cleaned
 
     def _extract_credentials(self, server: Server):
+        if server.connection_type == "AGENT":
+            return None, None, None
+
         if not server.credential:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -65,13 +74,15 @@ class ServiceManagementService:
         server: Server,
         state: Optional[str] = None,
         limit: int = 100,
+        db: Optional[Session] = None,
     ) -> ServiceListResponse:
         password, private_key, passphrase = self._extract_credentials(server)
+        provider = self._get_provider(server, db)
 
-        result = await self.service_provider.list_services(
-            host=server.ip_address,
+        result = await provider.list_services(
+            host=server.ip_address or "",
             port=server.ssh_port,
-            username=server.username,
+            username=server.username or "",
             password=password,
             private_key=private_key,
             passphrase=passphrase,
@@ -104,14 +115,16 @@ class ServiceManagementService:
         self,
         server: Server,
         service_name: str,
+        db: Optional[Session] = None,
     ) -> ServiceDetailResponse:
         valid_name = self.validate_service_name(service_name)
         password, private_key, passphrase = self._extract_credentials(server)
+        provider = self._get_provider(server, db)
 
-        info = await self.service_provider.get_service(
-            host=server.ip_address,
+        info = await provider.get_service(
+            host=server.ip_address or "",
             port=server.ssh_port,
-            username=server.username,
+            username=server.username or "",
             password=password,
             private_key=private_key,
             passphrase=passphrase,
@@ -143,6 +156,7 @@ class ServiceManagementService:
         service_name: str,
         action: str,
         confirm: bool,
+        db: Optional[Session] = None,
     ) -> ServiceActionResponse:
         valid_name = self.validate_service_name(service_name)
         if not confirm:
@@ -152,11 +166,12 @@ class ServiceManagementService:
             )
 
         password, private_key, passphrase = self._extract_credentials(server)
+        provider = self._get_provider(server, db)
 
-        res = await self.service_provider.execute_action(
-            host=server.ip_address,
+        res = await provider.execute_action(
+            host=server.ip_address or "",
             port=server.ssh_port,
-            username=server.username,
+            username=server.username or "",
             password=password,
             private_key=private_key,
             passphrase=passphrase,

@@ -350,6 +350,141 @@ class SSHProvider(ConnectionProvider):
                 conn.close()
 
 
+class AgentConnectionProvider(ConnectionProvider):
+    """Execution/Connection provider communicating with Linux target via outbound DevOps Agent."""
+
+    def __init__(
+        self,
+        db: Optional[Any] = None,
+        workspace_id: Optional[Any] = None,
+        server_id: Optional[Any] = None,
+        agent_manager: Optional[Any] = None,
+        dispatcher: Optional[Any] = None,
+    ):
+        self.db = db
+        self.workspace_id = workspace_id
+        self.server_id = server_id
+        self._agent_manager = agent_manager
+        self._dispatcher = dispatcher
+
+    def _get_agent_manager(self):
+        if self._agent_manager:
+            return self._agent_manager
+        from app.services.agent_manager import AgentManager
+        return AgentManager()
+
+    def _get_dispatcher(self):
+        if self._dispatcher:
+            return self._dispatcher
+        from app.services.agent_dispatcher import dispatcher_instance
+        return dispatcher_instance
+
+    async def test_connection(
+        self,
+        host: str,
+        port: int,
+        username: str,
+        password: Optional[str] = None,
+        private_key: Optional[str] = None,
+        passphrase: Optional[str] = None,
+    ) -> ConnectionResult:
+        if not self.db or not self.workspace_id or not self.server_id:
+            return ConnectionResult(
+                success=False,
+                message="Context server atau database tidak lengkap.",
+                status="OFFLINE",
+            )
+        mgr = self._get_agent_manager()
+        disp = self._get_dispatcher()
+        agent = mgr.get_agent_for_server(self.db, self.workspace_id, self.server_id)
+        if not agent or not agent.is_active or agent.status != "ONLINE":
+            return ConnectionResult(
+                success=False,
+                message="DevOps Agent pada server ini sedang offline atau belum terhubung.",
+                status="OFFLINE",
+            )
+        try:
+            info = await disp.execute_job(
+                db=self.db,
+                agent=agent,
+                operation="GET_SERVER_INFO",
+                timeout_seconds=10,
+            )
+            return ConnectionResult(
+                success=True,
+                message="Koneksi Agent aktif dan responsif.",
+                status="ONLINE",
+                server_info=info,
+            )
+        except Exception as e:
+            return ConnectionResult(
+                success=False,
+                message=f"Komunikasi ke Agent gagal: {str(e)}",
+                status="OFFLINE",
+            )
+
+    async def get_server_info(
+        self,
+        host: str,
+        port: int,
+        username: str,
+        password: Optional[str] = None,
+        private_key: Optional[str] = None,
+        passphrase: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        if not self.db or not self.workspace_id or not self.server_id:
+            return {}
+        mgr = self._get_agent_manager()
+        disp = self._get_dispatcher()
+        agent = mgr.get_agent_for_server(self.db, self.workspace_id, self.server_id)
+        if not agent or not agent.is_active or agent.status != "ONLINE":
+            return {}
+        try:
+            return await disp.execute_job(
+                db=self.db,
+                agent=agent,
+                operation="GET_SERVER_INFO",
+                timeout_seconds=10,
+            )
+        except Exception:
+            return {}
+
+    async def collect_raw_metrics(
+        self,
+        host: str,
+        port: int,
+        username: str,
+        password: Optional[str] = None,
+        private_key: Optional[str] = None,
+        passphrase: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        if not self.db or not self.workspace_id or not self.server_id:
+            return {"success": False, "status": "UNKNOWN", "sections": {}, "error": "Context database tidak valid."}
+        mgr = self._get_agent_manager()
+        disp = self._get_dispatcher()
+        agent = mgr.get_agent_for_server(self.db, self.workspace_id, self.server_id)
+        if not agent or not agent.is_active or agent.status != "ONLINE":
+            return {"success": False, "status": "OFFLINE", "sections": {}, "error": "DevOps Agent offline atau tidak terhubung."}
+        try:
+            res = await disp.execute_job(
+                db=self.db,
+                agent=agent,
+                operation="GET_SYSTEM_METRICS",
+                timeout_seconds=10,
+            )
+            sections = res.get("sections", {})
+            return {"success": True, "status": "ONLINE", "sections": sections, "error": None}
+        except Exception as e:
+            return {"success": False, "status": "OFFLINE", "sections": {}, "error": f"Agent error: {str(e)}"}
+
+
 # Provider Factory
-def get_connection_provider() -> ConnectionProvider:
+def get_connection_provider(server: Optional[Any] = None, db: Optional[Any] = None) -> ConnectionProvider:
+    if server and getattr(server, "connection_type", "SSH") == "AGENT" and db is not None:
+        return AgentConnectionProvider(
+            db=db,
+            workspace_id=server.workspace_id,
+            server_id=server.id,
+        )
     return SSHProvider()
+

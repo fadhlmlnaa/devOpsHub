@@ -26,6 +26,7 @@ from app.services.encryption import SecretEncryptionService
 from app.services.redaction import secret_redactor
 from app.infrastructure.deployment_providers.base import DeploymentProvider
 from app.infrastructure.deployment_providers.ssh_deployment import SSHDeploymentProvider
+from app.services.provider_factory import ProviderFactory
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +41,13 @@ class DeploymentManagementService:
         encryption_service: Optional[SecretEncryptionService] = None,
     ):
         self.db = db
-        self.provider = provider or SSHDeploymentProvider()
+        self._custom_provider = provider
         self.encryption = encryption_service or SecretEncryptionService()
+
+    def _get_provider(self, server: Server) -> DeploymentProvider:
+        if self._custom_provider:
+            return self._custom_provider
+        return ProviderFactory.get_deployment_provider(server, self.db)
 
     # --- Authorization & Scope Helpers ---
 
@@ -283,19 +289,24 @@ class DeploymentManagementService:
         if not srv:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Target server tidak ditemukan.")
 
-        cred = self.db.query(ServerCredential).filter(ServerCredential.server_id == srv.id).first()
-        if not cred:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Kredensial SSH server target belum dikonfigurasi.",
-            )
+        password = None
+        pk = None
+        passphrase = None
+        username = srv.username or "root"
 
-        password = self.encryption.decrypt(cred.encrypted_password) if cred.encrypted_password else None
-        pk = self.encryption.decrypt(cred.encrypted_private_key) if cred.encrypted_private_key else None
-        passphrase = self.encryption.decrypt(cred.encrypted_passphrase) if cred.encrypted_passphrase else None
-        host = srv.ip_address or srv.hostname
-        if not host:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Host / IP server tidak valid.")
+        if srv.connection_type != "AGENT":
+            cred = self.db.query(ServerCredential).filter(ServerCredential.server_id == srv.id).first()
+            if not cred:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Kredensial SSH server target belum dikonfigurasi.",
+                )
+            username = cred.username
+            password = self.encryption.decrypt(cred.encrypted_password) if cred.encrypted_password else None
+            pk = self.encryption.decrypt(cred.encrypted_private_key) if cred.encrypted_private_key else None
+            passphrase = self.encryption.decrypt(cred.encrypted_passphrase) if cred.encrypted_passphrase else None
+
+        host = srv.ip_address or srv.hostname or ""
 
         # Create Deployment record with RUNNING state
         now = datetime.now(timezone.utc)
@@ -331,11 +342,12 @@ class DeploymentManagementService:
                 logger.warning("Failed to persist incremental log: %s", ex)
 
         try:
-            # Execute deployment through provider with real-time log callback
-            exec_result = await self.provider.deploy(
+            # Execute deployment through dynamic provider with real-time log callback
+            provider = self._get_provider(srv)
+            exec_result = await provider.deploy(
                 host=host,
                 port=srv.ssh_port,
-                username=cred.username,
+                username=username,
                 password=password,
                 private_key=pk,
                 passphrase=passphrase,

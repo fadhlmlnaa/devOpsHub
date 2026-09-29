@@ -37,8 +37,17 @@ class ServerCreate(BaseModel):
     username: Optional[str] = Field(None, max_length=64, description="Default SSH Username")
     operating_system: Optional[str] = Field(None, max_length=64, description="Operating System (e.g. Ubuntu 24.04)")
     description: Optional[str] = None
+    connection_type: str = Field("SSH", description="'SSH' or 'AGENT'")
     is_active: bool = Field(True, description="Status aktif server")
     credential: Optional[ServerCredentialInput] = None
+
+    @field_validator("connection_type")
+    @classmethod
+    def validate_conn_type(cls, v: str) -> str:
+        upper = v.strip().upper()
+        if upper not in ("SSH", "AGENT"):
+            raise ValueError("connection_type harus bernilai 'SSH' atau 'AGENT'.")
+        return upper
 
 
 class ServerUpdate(BaseModel):
@@ -50,8 +59,19 @@ class ServerUpdate(BaseModel):
     username: Optional[str] = None
     operating_system: Optional[str] = None
     description: Optional[str] = None
+    connection_type: Optional[str] = None
     is_active: Optional[bool] = None
     credential: Optional[ServerCredentialInput] = None
+
+    @field_validator("connection_type")
+    @classmethod
+    def validate_conn_type(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        upper = v.strip().upper()
+        if upper not in ("SSH", "AGENT"):
+            raise ValueError("connection_type harus bernilai 'SSH' atau 'AGENT'.")
+        return upper
 
 
 class ServerResponse(BaseModel):
@@ -65,6 +85,7 @@ class ServerResponse(BaseModel):
     username: Optional[str] = None
     operating_system: Optional[str] = None
     description: Optional[str] = None
+    connection_type: str = "SSH"
     is_active: bool = True
     environment: Optional[EnvironmentSummary] = None
     has_credential: bool = False

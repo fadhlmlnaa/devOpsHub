@@ -31,13 +31,19 @@ from app.schemas.docker import (
     DockerStatusResponse,
 )
 from app.services.encryption import secret_encryption_service
+from app.services.provider_factory import ProviderFactory
 
 
 class DockerManagementService:
     """Business logic for Docker & Docker Compose container management."""
 
     def __init__(self, docker_provider: Optional[DockerProvider] = None):
-        self.docker_provider = docker_provider or SSHDockerProvider()
+        self._custom_provider = docker_provider
+
+    def _get_provider(self, server: Server, db: Session) -> DockerProvider:
+        if self._custom_provider:
+            return self._custom_provider
+        return ProviderFactory.get_docker_provider(server, db)
 
     def validate_container_id(self, container_id: str) -> str:
         clean_id = container_id.strip()
@@ -52,6 +58,16 @@ class DockerManagementService:
         return clean_id
 
     def _extract_credentials(self, server: Server):
+        if server.connection_type == "AGENT":
+            return (
+                server.ip_address or server.hostname or "",
+                server.ssh_port or 22,
+                server.username or "root",
+                None,
+                None,
+                None,
+            )
+
         if not server.credential:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -96,7 +112,8 @@ class DockerManagementService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Server tidak ditemukan.")
 
         host, port, username, password, private_key, passphrase = self._extract_credentials(server)
-        res = await self.docker_provider.get_docker_status(
+        provider = self._get_provider(server, db)
+        res = await provider.get_docker_status(
             host, port, username, password, private_key, passphrase
         )
 
@@ -135,7 +152,8 @@ class DockerManagementService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Server tidak ditemukan.")
 
         host, port, username, password, private_key, passphrase = self._extract_credentials(server)
-        results = await self.docker_provider.list_containers(
+        provider = self._get_provider(server, db)
+        results = await provider.list_containers(
             host, port, username, password, private_key, passphrase,
             state_filter=state_filter.value,
         )
@@ -178,7 +196,8 @@ class DockerManagementService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Server tidak ditemukan.")
 
         host, port, username, password, private_key, passphrase = self._extract_credentials(server)
-        c = await self.docker_provider.get_container_detail(
+        provider = self._get_provider(server, db)
+        c = await provider.get_container_detail(
             host, port, username, password, private_key, passphrase,
             container_id=valid_id,
         )
@@ -238,7 +257,8 @@ class DockerManagementService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Server tidak ditemukan.")
 
         host, port, username, password, private_key, passphrase = self._extract_credentials(server)
-        res = await self.docker_provider.execute_container_action(
+        provider = self._get_provider(server, db)
+        res = await provider.execute_container_action(
             host, port, username, password, private_key, passphrase,
             container_id=valid_id,
             action=action,
@@ -274,7 +294,8 @@ class DockerManagementService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Server tidak ditemukan.")
 
         host, port, username, password, private_key, passphrase = self._extract_credentials(server)
-        res = await self.docker_provider.get_container_logs(
+        provider = self._get_provider(server, db)
+        res = await provider.get_container_logs(
             host, port, username, password, private_key, passphrase,
             container_id=valid_id,
             lines=lines,
@@ -505,7 +526,8 @@ class DockerManagementService:
 
         server = project.server
         host, port, username, password, private_key, passphrase = self._extract_credentials(server)
-        res = await self.docker_provider.get_compose_status(
+        provider = self._get_provider(server, db)
+        res = await provider.get_compose_status(
             host, port, username, password, private_key, passphrase,
             working_directory=project.working_directory,
             compose_file=project.compose_file,
@@ -569,7 +591,8 @@ class DockerManagementService:
 
         server = project.server
         host, port, username, password, private_key, passphrase = self._extract_credentials(server)
-        res = await self.docker_provider.execute_compose_action(
+        provider = self._get_provider(server, db)
+        res = await provider.execute_compose_action(
             host, port, username, password, private_key, passphrase,
             working_directory=project.working_directory,
             compose_file=project.compose_file,

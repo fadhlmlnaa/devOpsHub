@@ -15,6 +15,7 @@ import 'package:devops_hub/data/models/deployment_model.dart';
 import 'package:devops_hub/data/models/backup_model.dart';
 import 'package:devops_hub/data/models/alert_model.dart';
 import 'package:devops_hub/data/models/audit_log_model.dart';
+import 'package:devops_hub/data/models/agent_model.dart';
 import 'package:devops_hub/core/utils/formatters.dart';
 
 void main() {
@@ -901,6 +902,78 @@ void main() {
       expect(listResp.total, 1);
       expect(listResp.items.length, 1);
       expect(listResp.items.first.action, 'SERVICE_RESTARTED');
+    });
+  });
+
+  group('DevOps Agent Models JSON serialization', () {
+    test('AgentModel parses online status, capabilities, and version', () {
+      final json = {
+        'id': 'agent-uuid-1',
+        'server_id': 'server-uuid-1',
+        'workspace_id': 'workspace-uuid-1',
+        'name': 'Agent-Production Odoo',
+        'agent_version': '1.0.0',
+        'status': 'ONLINE',
+        'last_seen_at': '2026-09-29T10:00:00Z',
+        'hostname': 'prod-srv-01',
+        'operating_system': 'Ubuntu 22.04 LTS',
+        'architecture': 'x86_64',
+        'capabilities': {
+          'systemd': true,
+          'docker': true,
+          'postgresql': true,
+          'monitoring': true,
+        },
+        'is_active': true,
+        'created_at': '2026-09-29T09:00:00Z',
+        'updated_at': '2026-09-29T10:00:00Z',
+      };
+
+      final agent = AgentModel.fromJson(json);
+      expect(agent.id, 'agent-uuid-1');
+      expect(agent.name, 'Agent-Production Odoo');
+      expect(agent.isOnline, true);
+      expect(agent.isOffline, false);
+      expect(agent.isDisabled, false);
+      expect(agent.hasCapability('systemd'), true);
+      expect(agent.hasCapability('docker'), true);
+      expect(agent.hasCapability('unknown_cap'), false);
+      expect(agent.agentVersion, '1.0.0');
+    });
+
+    test('AgentEnrollmentResponseModel parses single-use token and command', () {
+      final json = {
+        'enrollment_token': 'doh_enroll_token_xyz',
+        'server_id': 'server-uuid-1',
+        'workspace_id': 'workspace-uuid-1',
+        'expires_at': '2026-09-29T10:15:00Z',
+        'installer_command': 'sudo python3 -m devops_agent.install --server http://127.0.0.1:8000 --token doh_enroll_token_xyz',
+      };
+
+      final enrollment = AgentEnrollmentResponseModel.fromJson(json);
+      expect(enrollment.enrollmentToken, 'doh_enroll_token_xyz');
+      expect(enrollment.serverId, 'server-uuid-1');
+      expect(enrollment.installerCommand, contains('doh_enroll_token_xyz'));
+    });
+
+    test('AgentJobModel parses job details and status', () {
+      final json = {
+        'id': 'job-uuid-1',
+        'agent_id': 'agent-uuid-1',
+        'workspace_id': 'workspace-uuid-1',
+        'server_id': 'server-uuid-1',
+        'operation': 'RESTART_SERVICE',
+        'status': 'SUCCESS',
+        'timeout_seconds': 30,
+        'created_at': '2026-09-29T10:00:00Z',
+        'expires_at': '2026-09-29T10:00:30Z',
+      };
+
+      final job = AgentJobModel.fromJson(json);
+      expect(job.id, 'job-uuid-1');
+      expect(job.operation, 'RESTART_SERVICE');
+      expect(job.status, 'SUCCESS');
+      expect(job.timeoutSeconds, 30);
     });
   });
 }

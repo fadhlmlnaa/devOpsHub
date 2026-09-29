@@ -21,13 +21,18 @@ class MonitoringService:
     """Service to collect and assemble telemetry metrics from remote servers."""
 
     def __init__(self, provider: Optional[ConnectionProvider] = None):
-        self.provider = provider or get_connection_provider()
+        self._custom_provider = provider
 
-    async def get_server_metrics(self, server: Server) -> ServerMetricsResponse:
+    def _get_provider(self, server: Server, db: Optional[Session] = None) -> ConnectionProvider:
+        if self._custom_provider:
+            return self._custom_provider
+        return get_connection_provider(server, db)
+
+    async def get_server_metrics(self, server: Server, db: Optional[Session] = None) -> ServerMetricsResponse:
         """Fetches telemetry metrics from the server using the configured connection provider."""
         # 1. Determine connection target
-        host = server.ip_address or server.hostname
-        if not host:
+        host = server.ip_address or server.hostname or ""
+        if not host and server.connection_type != "AGENT":
             return ServerMetricsResponse(
                 server_id=server.id,
                 status="UNKNOWN",
@@ -42,7 +47,7 @@ class MonitoringService:
         passphrase = None
 
         # 2. Extract decrypted credentials if available
-        if server.credential:
+        if server.connection_type != "AGENT" and server.credential:
             cred = server.credential
             username = cred.username or username
             if cred.encrypted_password:
@@ -76,7 +81,8 @@ class MonitoringService:
                     pass
 
         # 3. Collect raw telemetry via ConnectionProvider
-        raw_res = await self.provider.collect_raw_metrics(
+        provider = self._get_provider(server, db)
+        raw_res = await provider.collect_raw_metrics(
             host=host,
             port=port,
             username=username,

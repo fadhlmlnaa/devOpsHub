@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.workspace import Workspace
     from app.models.environment import Environment
     from app.models.server_credential import ServerCredential
+    from app.models.agent import Agent
 
 
 class Server(Base):
@@ -62,6 +63,11 @@ class Server(Base):
         Text,
         nullable=True,
     )
+    connection_type: Mapped[str] = mapped_column(
+        String(32),
+        default="SSH",
+        nullable=False,
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         default=True,
@@ -90,6 +96,12 @@ class Server(Base):
     )
     credential: Mapped[Optional["ServerCredential"]] = relationship(
         "ServerCredential",
+        back_populates="server",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    agent: Mapped[Optional["Agent"]] = relationship(
+        "Agent",
         back_populates="server",
         uselist=False,
         cascade="all, delete-orphan",

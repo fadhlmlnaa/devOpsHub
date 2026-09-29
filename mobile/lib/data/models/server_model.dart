@@ -11,6 +11,7 @@ class ServerModel {
   final String? username;
   final String? operatingSystem;
   final String? description;
+  final String connectionType;
   final bool isActive;
   final EnvironmentModel? environment;
   final bool hasCredential;
@@ -30,6 +31,7 @@ class ServerModel {
     this.username,
     this.operatingSystem,
     this.description,
+    this.connectionType = 'SSH',
     this.isActive = true,
     this.environment,
     this.hasCredential = false,
@@ -51,6 +53,7 @@ class ServerModel {
       username: json['username'] as String?,
       operatingSystem: json['operating_system'] as String?,
       description: json['description'] as String?,
+      connectionType: json['connection_type'] as String? ?? 'SSH',
       isActive: json['is_active'] as bool? ?? true,
       environment: json['environment'] != null && json['environment'] is Map<String, dynamic>
           ? EnvironmentModel(
@@ -80,6 +83,7 @@ class ServerModel {
       'username': username,
       'operating_system': operatingSystem,
       'description': description,
+      'connection_type': connectionType,
       'is_active': isActive,
       'has_credential': hasCredential,
       'auth_type': authType,

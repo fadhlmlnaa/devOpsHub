@@ -17,6 +17,7 @@ from app.models.alert import (
     Notification,
 )
 from app.models.audit_log import AuditLog
+from app.models.agent import Agent, AgentEnrollmentToken, AgentJob
 
 __all__ = [
     "Base",
@@ -41,5 +42,9 @@ __all__ = [
     "NotificationPreference",
     "Notification",
     "AuditLog",
+    "Agent",
+    "AgentEnrollmentToken",
+    "AgentJob",
 ]
+
 

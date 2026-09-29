@@ -5,21 +5,33 @@ import '../../../data/models/connection_test_model.dart';
 import '../../../data/models/monitoring_metrics_model.dart';
 import '../../../data/services/server_service.dart';
 
+import '../../../data/models/agent_model.dart';
+import '../../../data/services/agent_service.dart';
+
 class ServerController extends GetxController {
   final ServerService serverService;
+  final AgentService? agentService;
 
   final RxBool isLoading = false.obs;
   final RxBool isCreating = false.obs;
   final RxBool isTestingConnection = false.obs;
   final RxBool isLoadingMetrics = false.obs;
+  final RxBool isLoadingAgent = false.obs;
+  final RxBool isEnrolling = false.obs;
+
   final RxList<ServerModel> servers = <ServerModel>[].obs;
   final Rxn<ServerModel> selectedServer = Rxn<ServerModel>();
   final Rxn<ConnectionTestModel> connectionTestResult = Rxn<ConnectionTestModel>();
   final Rxn<ServerMetricsModel> serverMetrics = Rxn<ServerMetricsModel>();
+  final Rxn<AgentModel> agent = Rxn<AgentModel>();
+  final Rxn<AgentEnrollmentResponseModel> enrollmentData = Rxn<AgentEnrollmentResponseModel>();
   final RxnString errorMessage = RxnString();
   final RxnString metricsErrorMessage = RxnString();
 
-  ServerController({required this.serverService});
+  ServerController({
+    required this.serverService,
+    this.agentService,
+  });
 
   Future<void> loadServers(String workspaceId, {String? environmentId}) async {
     try {
@@ -45,12 +57,146 @@ class ServerController extends GetxController {
 
       final server = await serverService.getServer(workspaceId, serverId);
       selectedServer.value = server;
+
+      // Also attempt to load agent information if connection_type == 'AGENT' or on demand
+      await loadAgent(workspaceId, serverId);
     } on ApiException catch (e) {
       errorMessage.value = e.message;
     } catch (_) {
       errorMessage.value = 'Gagal memuat detail server.';
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> loadAgent(String workspaceId, String serverId) async {
+    try {
+      isLoadingAgent.value = true;
+      final service = agentService ?? (Get.isRegistered<AgentService>() ? Get.find<AgentService>() : null);
+      if (service == null) return;
+
+      final agentData = await service.getAgent(workspaceId, serverId);
+      agent.value = agentData;
+    } catch (_) {
+      agent.value = null;
+    } finally {
+      isLoadingAgent.value = false;
+    }
+  }
+
+  Future<AgentEnrollmentResponseModel?> generateEnrollmentToken(
+    String workspaceId,
+    String serverId, {
+    int expiresInMinutes = 15,
+  }) async {
+    try {
+      isEnrolling.value = true;
+      final service = agentService ?? (Get.isRegistered<AgentService>() ? Get.find<AgentService>() : null);
+      if (service == null) throw ApiException(message: 'AgentService belum terdaftar.');
+
+      final result = await service.createEnrollmentToken(
+        workspaceId: workspaceId,
+        serverId: serverId,
+        expiresInMinutes: expiresInMinutes,
+      );
+      enrollmentData.value = result;
+      Get.snackbar(
+        'Enrollment Token Dibuat',
+        'Token setup agent siap dijalankan pada target server.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return result;
+    } on ApiException catch (e) {
+      Get.snackbar(
+        'Gagal Generate Token',
+        e.message,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return null;
+    } catch (_) {
+      Get.snackbar(
+        'Gagal',
+        'Terjadi kesalahan saat membuat enrollment token.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return null;
+    } finally {
+      isEnrolling.value = false;
+    }
+  }
+
+  Future<bool> disableAgent(String workspaceId, String serverId) async {
+    try {
+      isLoadingAgent.value = true;
+      final service = agentService ?? (Get.isRegistered<AgentService>() ? Get.find<AgentService>() : null);
+      if (service == null) throw ApiException(message: 'AgentService belum terdaftar.');
+
+      final updated = await service.disableAgent(workspaceId, serverId);
+      agent.value = updated;
+      Get.snackbar(
+        'Agent Dinonaktifkan',
+        'DevOps Agent untuk server ini berhasil dinonaktifkan.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return true;
+    } on ApiException catch (e) {
+      Get.snackbar(
+        'Gagal Nonaktifkan Agent',
+        e.message,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return false;
+    } finally {
+      isLoadingAgent.value = false;
+    }
+  }
+
+  Future<bool> revokeAgent(String workspaceId, String serverId) async {
+    try {
+      isLoadingAgent.value = true;
+      final service = agentService ?? (Get.isRegistered<AgentService>() ? Get.find<AgentService>() : null);
+      if (service == null) throw ApiException(message: 'AgentService belum terdaftar.');
+
+      final updated = await service.revokeAgent(workspaceId, serverId);
+      agent.value = updated;
+      if (selectedServer.value != null) {
+        final s = selectedServer.value!;
+        selectedServer.value = ServerModel(
+          id: s.id,
+          workspaceId: s.workspaceId,
+          environmentId: s.environmentId,
+          name: s.name,
+          hostname: s.hostname,
+          ipAddress: s.ipAddress,
+          sshPort: s.sshPort,
+          username: s.username,
+          operatingSystem: s.operatingSystem,
+          description: s.description,
+          connectionType: 'SSH',
+          isActive: s.isActive,
+          environment: s.environment,
+          hasCredential: s.hasCredential,
+          authType: s.authType,
+          status: s.status,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+        );
+      }
+      Get.snackbar(
+        'Agent Dicabut (Revoked)',
+        'Kredensial Agent telah dicabut dan mode dikembalikan ke SSH.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return true;
+    } on ApiException catch (e) {
+      Get.snackbar(
+        'Gagal Mencabut Agent',
+        e.message,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return false;
+    } finally {
+      isLoadingAgent.value = false;
     }
   }
 

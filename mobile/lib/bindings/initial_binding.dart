@@ -12,6 +12,7 @@ import '../data/services/deployment_service.dart';
 import '../data/services/backup_service.dart';
 import '../data/services/alert_service.dart';
 import '../data/services/audit_service.dart';
+import '../data/services/agent_service.dart';
 import '../modules/auth/controllers/auth_controller.dart';
 import '../modules/workspace/controllers/workspace_controller.dart';
 import '../modules/environment/controllers/environment_controller.dart';
@@ -68,6 +69,9 @@ class InitialBinding extends Bindings {
     final auditService = AuditService(apiClient: apiClient);
     Get.put<AuditService>(auditService, permanent: true);
 
+    final agentService = AgentService(apiClient: apiClient);
+    Get.put<AgentService>(agentService, permanent: true);
+
     // Global Auth Controller
     Get.put<AuthController>(
       AuthController(authService: authService),
@@ -93,6 +97,7 @@ class InitialBinding extends Bindings {
     Get.lazyPut<ServerController>(
       () => ServerController(
         serverService: serverService,
+        agentService: agentService,
       ),
       fenix: true,
     );

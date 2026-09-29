@@ -384,9 +384,41 @@ flutter test
 
 ## 🧪 Struktur Unit & Widget Test Otomatis (Mobile & Backend)
 
+### Skenario Uji 21: DevOps Standalone Agent (Step 15)
+1. **Pengecekan Status Connection Mode di Server Detail**:
+   - Buka **Server Detail** salah satu server.
+   - Pada header card, perhatikan badge mode koneksi (`SSH` atau `AGENT`).
+   - Server existing secara default berstatus `SSH` dan tetap berfungsi normal tanpa perubahan konfigurasi.
+2. **Generate Enrollment Token (One-Time Token)**:
+   - Pada section **DevOps Agent (Execution Plane)**, klik tombol **"Generate Agent Enrollment Token"**.
+   - Muncul dialog modal menampilkan perintah setup command lengkap dengan token hash one-time (berlaku 15 menit).
+   - Klik tombol **"Salin"** untuk menyalin perintah setup ke clipboard.
+   - Token ini disimpan dalam bentuk hash SHA-256 di database (bukan plaintext) dan hanya dapat digunakan 1 kali (*single-use*).
+3. **Pendaftaran Agent (Outbound Enrollment Handshake)**:
+   - Jalankan installer agent pada target server / environment pengujian:
+     ```bash
+     python3 -m agent.main enroll --server http://127.0.0.1:8000 --token <ENROLLMENT_TOKEN>
+     ```
+   - Agent akan mengirim handshake ke `/api/v1/agent/enroll`, memvalidasi token, dan menerima kredensial permanen terisolasi (`agent_token`).
+   - Mode server otomatis beralih menjadi `AGENT`.
+4. **Heartbeat & Capabilities Verification**:
+   - Agent menjalankan koneksi WebSocket / HTTP Heartbeat secara berkala ke backend.
+   - Pada aplikasi mobile Server Detail, status agent akan berubah menjadi **`ONLINE`** (badge hijau), menampilkan versi agent (`1.0.0`), waktu heartbeat terakhir, serta checklist capability (`✓ systemd`, `✓ Docker`, `✓ Monitoring`, `✓ PostgreSQL`, `✓ Filesystem Backup`).
+5. **Eksekusi Operasi Predefined via Agent**:
+   - Lakukan refresh metrik, restart service systemd, atau cek container Docker pada server ber-tipe `AGENT`.
+   - Backend memvalidasi otorisasi & audit log, lalu mengirim job terstruktur ke Agent via WebSocket (`dispatcher_instance`).
+   - Agent memvalidasi nonce (replay protection), expiration, dan menjalankan fungsi terisolasi sesuai allowlist (tanpa arbitrary shell string).
+6. **Nonaktifkan & Cabut Kredensial (Disable & Revoke)**:
+   - Klik **"Nonaktifkan"** pada card Agent: Agent berubah status menjadi `DISABLED` dan menolak job baru.
+   - Klik **"Revoke (SSH)"**: Kredensial agent dihapus permanen dan mode server di-reset kembali ke `SSH`.
+
+---
+
+## 🧪 Struktur Unit & Widget Test Otomatis (Mobile & Backend)
+
 ### Mobile Test
 File test terletak di folder `mobile/test/`:
-- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk seluruh model backend termasuk `AuditLogModel`, `AuditLogListResponseModel` (Step 14), `AlertRuleModel`, `AlertModel`, `NotificationModel`.
+- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk seluruh model backend termasuk `AgentModel`, `AgentEnrollmentResponseModel`, `AgentJobModel` (Step 15), `AuditLogModel`, `AlertRuleModel`, `AlertModel`, `NotificationModel`.
 - `api_exception_test.dart`: Pengujian parsing error backend, handling status code HTTP (400, 401, 403, 404, 409, 422, 429, 500) dan timeout connection.
 - `widgets_test.dart`: Pengujian rendering dan event listener pada Base Widgets (`AppButton`, `AppTextField`, `AppStatusBadge`, `AppCard`).
 - `widget_test.dart`: Pengujian inisialisasi aplikasi `DevOpsHubApp` dan halaman startup.
@@ -398,7 +430,8 @@ cd mobile && flutter test
 
 ### Backend Test
 File test terletak di folder `backend/tests/`:
-- `test_security_audit.py`: 12 test komprehensif untuk validasi audit logging append-only, immutability, RBAC access control, IDOR workspace isolation, token rotation, token reuse revocation, sliding window rate limiting (429), security headers, dan input validation anti-traversal.
+- `test_agent.py`: Pengujian komprehensif lifecycle DevOps Agent: pembuatan enrollment token, verifikasi token kedaluwarsa / digunakan ulang, handshake pendaftaran agent, autentikasi heartbeat, WebSocket dispatcher job protocol, proteksi replay nonce, proteksi injeksi service name, serta isolasi Provider Factory tanpa silent fallback.
+- `test_security_audit.py`: Validasi audit logging append-only, immutability, RBAC access control, IDOR workspace isolation, token rotation, token reuse revocation, sliding window rate limiting (429), security headers, dan input validation anti-traversal.
 
 Jalankan backend test:
 ```bash

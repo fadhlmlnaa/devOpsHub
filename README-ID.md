@@ -361,6 +361,28 @@ Buka Aplikasi (Splash)
     - **Flutter Mobile Screens**:
       - **Audit Logs Explorer**: Menu dedicated di Workspace Home untuk meninjau log aktivitas, dilengkapi pencarian filter berdasarkan action (*LOGIN, SERVER_ACTION, DEPLOY, BACKUP, dll.*), resource type, status, dan dialog detail metadata audit dengan tampilan JSON terformat & tersanitasi.
       - **RBAC Guard**: Tombol/Menu Audit Log hanya ditampilkan dan dapat diakses oleh user ber-role `OWNER` / `ADMIN`.
+  - **Step 15: DevOps Standalone Agent (TERBARU)**:
+    - **Tujuan**: Implementasi lightweight Linux agent daemon dengan outbound-only connection, strict operation allowlist, dan dual-transport abstraction (`SSHProvider` & `AgentProvider`) tanpa mengubah stabilitas server existing.
+    - **Arsitektur Transport**:
+      ```text
+      Flutter Mobile App -> FastAPI Backend (Control Plane)
+                                  |
+                                  | Outbound WebSocket / TLS
+                                  v
+                            DevOps Agent (Execution Plane)
+                                  ├── Linux System Metrics
+                                  ├── Systemd Service Management
+                                  ├── Docker Container Engine
+                                  ├── PostgreSQL Database Tools
+                                  └── Filesystem Backup Engine
+      ```
+    - **Fitur Utama**:
+      - **One-Time Enrollment Token**: Token pendaftaran short-lived (15 menit), single-use, dan disimpan dalam bentuk hash SHA-256 (bukan plaintext).
+      - **Outbound-Only Connection**: Agent yang menghubungkan diri keluar ke Backend (`/api/v1/agent/ws`), sehingga server target tidak perlu membuka port inbound SSH baru di firewall.
+      - **Predefined Operation Allowlist**: Agent hanya mengeksekusi operasi yang terdaftar resmi. Sama sekali tidak menerima arbitrary command string atau remote terminal shell.
+      - **Replay Protection & Timeout**: Setiap job memiliki UUID, expiration ISO datetime, timeout, dan random nonce untuk mencegah replay attack.
+      - **Dual Transport Provider Abstraction**: `ProviderFactory` mengarahkan eksekusi ke `AgentProvider` atau `SSHProvider` secara transparan berdasarkan `server.connection_type`. Server mode `AGENT` yang offline tidak akan secara diam-diam fallback ke SSH tanpa konfigurasi eksplisit.
+      - **Flutter Mobile**: Section dedicated DevOps Agent di Server Detail menampilkan status online/offline, versi agent, waktu heartbeat, checklist capabilities terdaftar, serta dialog one-time setup command dengan tombol salin cepat.
 
 ---
 

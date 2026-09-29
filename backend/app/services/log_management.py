@@ -12,6 +12,8 @@ from app.infrastructure.log_providers.ssh_journal import (
 from app.models.server import Server
 from app.schemas.log import LogEntry, LogResponse
 from app.services.encryption import secret_encryption_service
+from app.services.provider_factory import ProviderFactory
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +24,12 @@ class LogManagementService:
     """Business logic for retrieving and managing service logs."""
 
     def __init__(self, log_provider: Optional[LogProvider] = None):
-        self.log_provider = log_provider or SSHJournalLogProvider()
+        self._custom_provider = log_provider
+
+    def _get_provider(self, server: Server, db: Optional[Session] = None) -> LogProvider:
+        if self._custom_provider:
+            return self._custom_provider
+        return ProviderFactory.get_log_provider(server, db)
 
     def validate_service_name(self, service_name: str) -> str:
         cleaned = service_name.strip()
@@ -37,6 +44,9 @@ class LogManagementService:
         return cleaned
 
     def _extract_credentials(self, server: Server):
+        if server.connection_type == "AGENT":
+            return None, None, None
+
         if not server.credential:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -63,6 +73,7 @@ class LogManagementService:
         service_name: str,
         lines: int = 100,
         since: Optional[str] = None,
+        db: Optional[Session] = None,
     ) -> LogResponse:
         valid_name = self.validate_service_name(service_name)
 
@@ -79,6 +90,7 @@ class LogManagementService:
             )
 
         password, private_key, passphrase = self._extract_credentials(server)
+        provider = self._get_provider(server, db)
 
         # Internal trace log (no secrets logged)
         logger.info(
@@ -89,10 +101,10 @@ class LogManagementService:
             since,
         )
 
-        res = await self.log_provider.get_service_logs(
-            host=server.ip_address,
+        res = await provider.get_service_logs(
+            host=server.ip_address or "",
             port=server.ssh_port,
-            username=server.username,
+            username=server.username or "",
             password=password,
             private_key=private_key,
             passphrase=passphrase,

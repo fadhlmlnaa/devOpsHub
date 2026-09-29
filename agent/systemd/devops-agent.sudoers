@@ -1,0 +1,12 @@
+# Sudoers configuration for devops-agent user
+# Place this file in /etc/sudoers.d/devops-agent with 0440 permissions
+#
+# Only specific predefined operations are permitted.
+# NEVER give ALL=(ALL) NOPASSWD: ALL.
+
+devops-agent ALL=(ALL) NOPASSWD: /bin/systemctl status *.service
+devops-agent ALL=(ALL) NOPASSWD: /bin/systemctl start *.service
+devops-agent ALL=(ALL) NOPASSWD: /bin/systemctl stop *.service
+devops-agent ALL=(ALL) NOPASSWD: /bin/systemctl restart *.service
+devops-agent ALL=(ALL) NOPASSWD: /bin/systemctl reload *.service
+devops-agent ALL=(ALL) NOPASSWD: /bin/journalctl -u *.service *

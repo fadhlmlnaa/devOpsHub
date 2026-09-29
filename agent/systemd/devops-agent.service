@@ -1,0 +1,27 @@
+[Unit]
+Description=DevOpsHub Lightweight Management Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=devops-agent
+Group=devops-agent
+WorkingDirectory=/opt/devops-agent
+ExecStart=/opt/devops-agent/venv/bin/python -m agent.main run --config /etc/devops-agent/config.json
+Restart=always
+RestartSec=5s
+KillMode=process
+TimeoutStopSec=15s
+
+# Security and Sandboxing
+NoNewPrivileges=false
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=true
+
+# Environment
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

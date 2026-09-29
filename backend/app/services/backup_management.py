@@ -31,6 +31,7 @@ from app.schemas.backup import (
 )
 from app.services.encryption import SecretEncryptionService
 from app.services.redaction import secret_redactor
+from app.services.provider_factory import ProviderFactory
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +46,13 @@ class BackupManagementService:
         encryption: Optional[SecretEncryptionService] = None,
     ):
         self.db = db
-        self.provider = provider or SSHBackupProvider()
+        self._custom_provider = provider
         self.encryption = encryption or SecretEncryptionService()
+
+    def _get_provider(self, server: Server) -> BackupProvider:
+        if self._custom_provider:
+            return self._custom_provider
+        return ProviderFactory.get_backup_provider(server, self.db)
 
     def _verify_workspace_membership(
         self,
@@ -301,19 +307,24 @@ class BackupManagementService:
         if not srv or not srv.is_active:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Server target tidak aktif atau tidak ditemukan.")
 
-        cred = self.db.query(ServerCredential).filter(ServerCredential.server_id == srv.id).first()
-        if not cred:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Kredensial SSH server target belum dikonfigurasi.",
-            )
+        password = None
+        pk = None
+        passphrase = None
+        username = srv.username or "root"
 
-        password = self.encryption.decrypt(cred.encrypted_password) if cred.encrypted_password else None
-        pk = self.encryption.decrypt(cred.encrypted_private_key) if cred.encrypted_private_key else None
-        passphrase = self.encryption.decrypt(cred.encrypted_passphrase) if cred.encrypted_passphrase else None
-        host = srv.ip_address or srv.hostname
-        if not host:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Host / IP server tidak valid.")
+        if srv.connection_type != "AGENT":
+            cred = self.db.query(ServerCredential).filter(ServerCredential.server_id == srv.id).first()
+            if not cred:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Kredensial SSH server target belum dikonfigurasi.",
+                )
+            username = cred.username
+            password = self.encryption.decrypt(cred.encrypted_password) if cred.encrypted_password else None
+            pk = self.encryption.decrypt(cred.encrypted_private_key) if cred.encrypted_private_key else None
+            passphrase = self.encryption.decrypt(cred.encrypted_passphrase) if cred.encrypted_passphrase else None
+
+        host = srv.ip_address or srv.hostname or ""
 
         # Create Backup record in RUNNING state
         now = datetime.now(timezone.utc)
@@ -349,10 +360,11 @@ class BackupManagementService:
                 logger.warning("Failed to persist incremental backup log: %s", ex)
 
         try:
-            exec_result: BackupExecutionResult = await self.provider.execute(
+            provider = self._get_provider(srv)
+            exec_result: BackupExecutionResult = await provider.execute(
                 host=host,
                 port=srv.ssh_port,
-                username=cred.username,
+                username=username,
                 password=password,
                 private_key=pk,
                 passphrase=passphrase,
@@ -444,19 +456,27 @@ class BackupManagementService:
         if not srv or not srv.is_active:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Server target tidak aktif atau tidak ditemukan.")
 
-        cred = self.db.query(ServerCredential).filter(ServerCredential.server_id == srv.id).first()
-        if not cred:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Kredensial SSH server tidak ditemukan.")
+        password = None
+        pk = None
+        passphrase = None
+        username = srv.username or "root"
 
-        password = self.encryption.decrypt(cred.encrypted_password) if cred.encrypted_password else None
-        pk = self.encryption.decrypt(cred.encrypted_private_key) if cred.encrypted_private_key else None
-        passphrase = self.encryption.decrypt(cred.encrypted_passphrase) if cred.encrypted_passphrase else None
-        host = srv.ip_address or srv.hostname
+        if srv.connection_type != "AGENT":
+            cred = self.db.query(ServerCredential).filter(ServerCredential.server_id == srv.id).first()
+            if not cred:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Kredensial SSH server tidak ditemukan.")
+            username = cred.username
+            password = self.encryption.decrypt(cred.encrypted_password) if cred.encrypted_password else None
+            pk = self.encryption.decrypt(cred.encrypted_private_key) if cred.encrypted_private_key else None
+            passphrase = self.encryption.decrypt(cred.encrypted_passphrase) if cred.encrypted_passphrase else None
 
-        v_result: BackupVerificationResult = await self.provider.verify(
+        host = srv.ip_address or srv.hostname or ""
+        provider = self._get_provider(srv)
+
+        v_result: BackupVerificationResult = await provider.verify(
             host=host,
             port=srv.ssh_port,
-            username=cred.username,
+            username=username,
             password=password,
             private_key=pk,
             passphrase=passphrase,
