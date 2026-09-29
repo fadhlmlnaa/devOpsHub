@@ -10,4 +10,7 @@ abstract class AppRoutes {
   static const serverDetail = '/workspaces/:id/servers/:serverId';
   static const services = '/workspaces/:id/servers/:serverId/services';
   static const logs = '/workspaces/:id/servers/:serverId/services/:serviceName/logs';
+  static const docker = '/workspaces/:id/servers/:serverId/docker';
+  static const containerDetail = '/workspaces/:id/servers/:serverId/docker/containers/:containerId';
 }
+

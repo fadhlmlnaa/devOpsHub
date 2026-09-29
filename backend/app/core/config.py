@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     LOG_COMMAND_TIMEOUT: int = 10
     MAX_LOG_RESPONSE_BYTES: int = 1048576
 
+    # Docker Settings (Step 10)
+    DOCKER_CONNECTION_TIMEOUT: int = 5
+    DOCKER_COMMAND_TIMEOUT: int = 15
+    DOCKER_LOG_COMMAND_TIMEOUT: int = 10
+    MAX_DOCKER_LOG_RESPONSE_BYTES: int = 1048576
+    DOCKER_COMPOSE_COMMAND_TIMEOUT: int = 60
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

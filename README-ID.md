@@ -160,6 +160,39 @@ Buka Aplikasi (Splash)
      - Salin baris log individual atau seluruh teks log ke clipboard.
      - Pull-to-refresh dan tombol manual refresh.
 
+9. **Step 10 — Docker Management & Docker Compose**:
+   - Pengelolaan container Docker dan Docker Compose Projects secara aman, terkontrol, dan real-time dari perangkat mobile.
+   - **Docker Detection & Daemon Status**:
+     - `GET /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker` (Status: `RUNNING`, `STOPPED`, `NOT_INSTALLED`, `UNKNOWN`, serta versi daemon).
+   - **Container Management**:
+     - `GET /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/containers?state=running|stopped|all` (Discovery container aktif/terhenti).
+     - `GET /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/containers/{container_id}` (Detail container, image, ports, restart policy, CPU/RAM usage).
+     - `POST /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/containers/{container_id}/start`
+     - `POST /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/containers/{container_id}/stop`
+     - `POST /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/containers/{container_id}/restart`
+     - `GET /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/containers/{container_id}/logs?lines=100&since=10m`
+   - **Docker Compose Projects**:
+     - `GET /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/compose/projects`
+     - `POST /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/compose/projects` (Registrasi project dengan validasi path & nama).
+     - `PATCH /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/compose/projects/{project_id}`
+     - `DELETE /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/compose/projects/{project_id}`
+     - `GET /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/compose/projects/{project_id}/status`
+     - `POST /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/compose/projects/{project_id}/up`
+     - `POST /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/compose/projects/{project_id}/down`
+     - `POST /api/v1/workspaces/{workspace_id}/servers/{server_id}/docker/compose/projects/{project_id}/restart`
+   - **Keamanan & Guarding**:
+     - **Strict Regex Validation**: Validasi container ID (`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$`), project name (`^[a-z0-9][a-z0-9_-]{0,63}$`), dan working directory wajib absolut path yang aman tanpa path traversal (`..`).
+     - **Confirmation Guard**: Mutasi container & compose wajib menyertakan payload `{"confirm": true}`.
+     - **Secret Redaction**: Output container logs secara otomatis disaring menggunakan `SecretRedactor` sebelum dikirim ke mobile.
+     - **No Arbitrary Commands**: Tidak ada endpoint `docker exec`, `docker run`, `docker system prune`, ataupun shell bebas.
+     - **RBAC Matrix**: `VIEWER` dan `DEVELOPER` hanya boleh melihat (read-only). Mutasi container & compose hanya untuk `ADMIN` dan `OWNER`.
+   - **Flutter Mobile Integration**:
+     - Docker Dashboard View dengan tab segmentasi (Containers vs Compose Projects).
+     - Container Detail View dengan badge status, resource usage, ports list, dan action buttons (Start, Stop, Restart).
+     - Monospace Container Log Viewer dengan color-coded timestamp dan search/filter/copy.
+     - Compose Project Cards dengan status service-service di dalamnya dan action buttons (Up, Down, Restart).
+     - Bottom sheet registrasi Compose Project baru.
+
 ---
 
 ## 4. Menjalankan & Menguji Aplikasi
@@ -177,3 +210,4 @@ flutter pub get
 flutter analyze
 flutter test
 ```
+

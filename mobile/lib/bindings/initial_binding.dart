@@ -7,12 +7,15 @@ import '../data/services/environment_service.dart';
 import '../data/services/server_service.dart';
 import '../data/services/service_service.dart';
 import '../data/services/log_service.dart';
+import '../data/services/docker_service.dart';
 import '../modules/auth/controllers/auth_controller.dart';
 import '../modules/workspace/controllers/workspace_controller.dart';
 import '../modules/environment/controllers/environment_controller.dart';
 import '../modules/server/controllers/server_controller.dart';
 import '../modules/service/controllers/service_controller.dart';
 import '../modules/log/controllers/log_controller.dart';
+import '../modules/docker/controllers/docker_controller.dart';
+import '../modules/docker/controllers/docker_compose_controller.dart';
 
 class InitialBinding extends Bindings {
   @override
@@ -43,13 +46,16 @@ class InitialBinding extends Bindings {
     final logService = LogService(apiClient: apiClient);
     Get.put<LogService>(logService, permanent: true);
 
+    final dockerService = DockerService(apiClient: apiClient);
+    Get.put<DockerService>(dockerService, permanent: true);
+
     // Global Auth Controller
     Get.put<AuthController>(
       AuthController(authService: authService),
       permanent: true,
     );
 
-    // Workspace, Environment, Server, Service & Log Controllers
+    // Workspace, Environment, Server, Service, Log, & Docker Controllers
     Get.lazyPut<WorkspaceController>(
       () => WorkspaceController(
         workspaceService: workspaceService,
@@ -85,5 +91,20 @@ class InitialBinding extends Bindings {
       ),
       fenix: true,
     );
+
+    Get.lazyPut<DockerController>(
+      () => DockerController(
+        dockerService: dockerService,
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<DockerComposeController>(
+      () => DockerComposeController(
+        dockerService: dockerService,
+      ),
+      fenix: true,
+    );
   }
 }
+

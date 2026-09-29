@@ -10,6 +10,7 @@ import 'package:devops_hub/data/models/connection_test_model.dart';
 import 'package:devops_hub/data/models/monitoring_metrics_model.dart';
 import 'package:devops_hub/data/models/service_model.dart';
 import 'package:devops_hub/data/models/log_model.dart';
+import 'package:devops_hub/data/models/docker_model.dart';
 import 'package:devops_hub/core/utils/formatters.dart';
 
 void main() {
@@ -408,4 +409,166 @@ void main() {
       expect(res.entries.first.message, 'Started nginx service.');
     });
   });
+
+  group('Docker Models JSON serialization', () {
+    test('DockerStatusModel parses properly', () {
+      final json = {
+        'server_id': '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c',
+        'state': 'RUNNING',
+        'installed': true,
+        'running': true,
+        'version': '28.0.1',
+        'checked_at': '2026-09-29T10:30:00Z',
+      };
+
+      final status = DockerStatusModel.fromJson(json);
+      expect(status.serverId, '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c');
+      expect(status.state, 'RUNNING');
+      expect(status.installed, true);
+      expect(status.running, true);
+      expect(status.version, '28.0.1');
+    });
+
+    test('DockerContainerModel parses container list item', () {
+      final json = {
+        'id': 'abc123456789',
+        'name': 'web-nginx',
+        'image': 'nginx:alpine',
+        'status': 'Up 4 hours',
+        'state': 'running',
+        'created_at': '2026-09-29T06:00:00Z',
+        'ports': ['80:80', '443:443'],
+      };
+
+      final container = DockerContainerModel.fromJson(json);
+      expect(container.id, 'abc123456789');
+      expect(container.name, 'web-nginx');
+      expect(container.image, 'nginx:alpine');
+      expect(container.isRunning, true);
+      expect(container.ports.length, 2);
+    });
+
+    test('DockerContainerDetailModel parses details & restart policy', () {
+      final json = {
+        'id': 'abc123456789',
+        'name': 'web-nginx',
+        'image': 'nginx:alpine',
+        'status': 'Up 4 hours',
+        'state': 'running',
+        'created_at': '2026-09-29T06:00:00Z',
+        'started_at': '2026-09-29T06:00:05Z',
+        'ports': ['80:80'],
+        'restart_policy': 'unless-stopped',
+        'cpu_usage': '0.5%',
+        'memory_usage': '12.4MB / 1.0GB',
+      };
+
+      final detail = DockerContainerDetailModel.fromJson(json);
+      expect(detail.restartPolicy, 'unless-stopped');
+      expect(detail.cpuUsage, '0.5%');
+      expect(detail.memoryUsage, '12.4MB / 1.0GB');
+      expect(detail.isRunning, true);
+    });
+
+    test('DockerContainerActionResultModel parses container action outcome', () {
+      final json = {
+        'success': true,
+        'container': 'web-nginx',
+        'action': 'restart',
+        'current_state': 'running',
+        'message': 'Container web-nginx restarted successfully.',
+        'checked_at': '2026-09-29T10:30:00Z',
+      };
+
+      final res = DockerContainerActionResultModel.fromJson(json);
+      expect(res.success, true);
+      expect(res.container, 'web-nginx');
+      expect(res.action, 'restart');
+      expect(res.currentState, 'running');
+    });
+
+    test('DockerContainerLogsModel parses log response with entries', () {
+      final json = {
+        'container': 'web-nginx',
+        'lines_requested': 50,
+        'lines_returned': 2,
+        'since': '10m',
+        'truncated': false,
+        'entries': [
+          {
+            'timestamp': '2026-09-29T10:29:00Z',
+            'message': 'GET /index.html 200',
+          },
+          {
+            'timestamp': '2026-09-29T10:29:05Z',
+            'message': 'GET /api/v1/health 200',
+          }
+        ],
+        'checked_at': '2026-09-29T10:30:00Z',
+      };
+
+      final logs = DockerContainerLogsModel.fromJson(json);
+      expect(logs.container, 'web-nginx');
+      expect(logs.linesRequested, 50);
+      expect(logs.linesReturned, 2);
+      expect(logs.entries.length, 2);
+      expect(logs.entries.first.message, 'GET /index.html 200');
+    });
+
+    test('DockerComposeProjectModel & DockerComposeStatusModel parse correctly', () {
+      final projectJson = {
+        'id': 'b1a2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+        'workspace_id': 'c7b5a190-3204-4edb-b483-1e440b8438bf',
+        'server_id': '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c',
+        'environment_id': 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+        'name': 'PTBI Production',
+        'project_name': 'ptbi',
+        'working_directory': '/opt/apps/ptbi',
+        'compose_file': 'docker-compose.yml',
+        'description': 'Main PTBI application stack',
+        'is_active': true,
+        'created_at': '2026-09-29T00:00:00Z',
+        'updated_at': '2026-09-29T00:00:00Z',
+      };
+
+      final project = DockerComposeProjectModel.fromJson(projectJson);
+      expect(project.name, 'PTBI Production');
+      expect(project.projectName, 'ptbi');
+      expect(project.workingDirectory, '/opt/apps/ptbi');
+      expect(project.composeFile, 'docker-compose.yml');
+
+      final statusJson = {
+        'project_id': 'b1a2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+        'project_name': 'ptbi',
+        'status': 'RUNNING',
+        'services': [
+          {'name': 'web', 'state': 'running'},
+          {'name': 'db', 'state': 'running'},
+        ],
+        'checked_at': '2026-09-29T10:30:00Z',
+      };
+
+      final status = DockerComposeStatusModel.fromJson(statusJson);
+      expect(status.projectId, 'b1a2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d');
+      expect(status.status, 'RUNNING');
+      expect(status.services.length, 2);
+      expect(status.services.first.name, 'web');
+      expect(status.services.first.state, 'running');
+
+      final actionJson = {
+        'success': true,
+        'project_id': 'b1a2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+        'action': 'up',
+        'status': 'RUNNING',
+        'message': 'Docker compose project started successfully.',
+        'checked_at': '2026-09-29T10:30:00Z',
+      };
+
+      final actionRes = DockerComposeActionResultModel.fromJson(actionJson);
+      expect(actionRes.success, true);
+      expect(actionRes.action, 'up');
+      expect(actionRes.status, 'RUNNING');
+    });
+  });
 }
+

@@ -12,6 +12,8 @@ import '../../modules/server/views/add_server_view.dart';
 import '../../modules/server/views/server_detail_view.dart';
 import '../../modules/service/views/service_list_view.dart';
 import '../../modules/log/views/service_log_view.dart';
+import '../../modules/docker/views/docker_dashboard_view.dart';
+import '../../modules/docker/views/container_detail_view.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -73,5 +75,16 @@ class AppPages {
       page: () => const ServiceLogView(),
       transition: Transition.rightToLeft,
     ),
+    GetPage(
+      name: AppRoutes.docker,
+      page: () => const DockerDashboardView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.containerDetail,
+      page: () => const ContainerDetailView(),
+      transition: Transition.rightToLeft,
+    ),
   ];
 }
+

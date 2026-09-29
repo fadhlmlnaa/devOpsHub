@@ -6,12 +6,12 @@ Dokumen ini berisi panduan langkah demi langkah untuk menguji backend dan aplika
 
 ## Ringkasan Perintah Cepat
 
-### 1. Menjalankan Semua Test Backend (34 Tests)
+### 1. Menjalankan Semua Test Backend (72 Tests)
 ```bash
 docker compose exec backend pytest -v
 ```
 
-### 2. Menjalankan Analisis & Test Mobile (15 Tests)
+### 2. Menjalankan Analisis & Test Mobile (33 Tests)
 ```bash
 cd mobile
 flutter analyze
@@ -20,7 +20,7 @@ flutter test
 
 ---
 
-## 📱 Panduan Pengujian Manual Mobile (Step 05)
+## 📱 Panduan Pengujian Manual Mobile (Step 05 - Step 10)
 
 ### Persiapan Menjalankan Aplikasi Mobile
 
@@ -195,14 +195,57 @@ flutter test
 
 ---
 
-### Skenario Uji 13: Auto-Refresh Token & Sesi Aman
+---
+
+### Skenario Uji 13: Manajemen Docker & Containers (Step 10)
+1. Buka halaman **Server Detail** pada server yang memiliki daemon Docker.
+2. Periksa kartu **Docker Container Platform**:
+   - Jika daemon Docker aktif, kartu menampilkan status **RUNNING** dengan versi daemon (misal: `Docker 28.0.1`) dan tombol **"Buka Docker Dashboard"**.
+   - Jika Docker tidak terinstal, kartu menampilkan **NOT_INSTALLED** atau **STOPPED** dengan informasi yang aman.
+3. Klik **"Buka Docker Dashboard"**:
+   - Dashboard menampilkan status daemon, total containers, dan tab segmentasi: **Containers** dan **Compose Projects**.
+4. Di tab **Containers**:
+   - Filter container berdasarkan state (**Running**, **Stopped**, **Semua**).
+   - Klik kartu container (misal: `web-nginx` atau `postgres_db`) untuk masuk ke **Container Detail View**.
+5. Di halaman **Container Detail**:
+   - Periksa spesifikasi: ID, Nama, Image, Status, Ports mapping, Restart Policy, serta resource CPU/RAM usage.
+   - Uji mutasi siklus hidup: **Start**, **Stop**, **Restart**.
+   - Setiap mutasi memunculkan modal dialog konfirmasi bahaya dengan `confirm: true`.
+   - Role `VIEWER` dan `DEVELOPER` hanya melihat (tombol mutasi nonaktif/hidden). Role `ADMIN` dan `OWNER` dapat mengeksekusi aksi.
+6. Klik **"Lihat Log Container (stdout/stderr)"**:
+   - Halaman terminal log container terbuka dengan log stream real-time.
+   - Terapkan filter baris log (50, 100, 200, 500, 1000) dan rentang waktu.
+   - Periksa bahwa secret redaction aktif menyensor kata sandi/token pada output log.
+
+---
+
+### Skenario Uji 14: Manajemen Docker Compose Projects (Step 10)
+1. Di **Docker Dashboard**, pilih tab **Compose Projects**.
+2. Klik tombol **"+ Registrasikan Compose Project"**:
+   - Masukkan Nama Tampilan: `PTBI Production`
+   - Masukkan Nama Project: `ptbi`
+   - Masukkan Direktori Kerja Absolut: `/opt/apps/ptbi`
+   - Masukkan Nama File Compose: `docker-compose.yml`
+   - Klik **"Simpan Project"**.
+3. Periksa kartu **Compose Project**:
+   - Menampilkan status project (**RUNNING**, **STOPPED**, **PARTIAL**, **FAILED**), direktori kerja, dan daftar sub-service (misal: `web`, `db`, `redis`).
+4. Uji operasi Compose:
+   - Klik **Up** untuk menjalankan `docker compose up -d`.
+   - Klik **Restart** untuk memulai ulang stack `docker compose restart`.
+   - Klik **Down** untuk menghentikan stack `docker compose down`.
+   - Semua operasi memerlukan konfirmasi eksplisit sebelum dijalankan.
+5. Role `VIEWER` dan `DEVELOPER` hanya dapat memantau status Compose project.
+
+---
+
+### Skenario Uji 15: Auto-Refresh Token & Sesi Aman
 1. Sesi pengguna (Access Token & Refresh Token) tersimpan di storage terenkripsi perangkat (`flutter_secure_storage`).
 2. Jika Access Token kadaluarsa (401), `ApiClient` secara transparan memicu endpoint `/auth/refresh` di background, memperbarui token di storage, dan mengulang request data tanpa mengganggu interaksi pengguna.
 3. Jika Refresh Token juga kadaluarsa atau di-revoke, sesi dibersihkan dan pengguna diarahkan kembali ke layar Login.
 
 ---
 
-### Skenario Uji 14: Logout
+### Skenario Uji 16: Logout
 1. Klik tombol **Logout** di AppBar.
 2. Dialog konfirmasi muncul.
 3. Klik **"Logout"**.
@@ -213,7 +256,7 @@ flutter test
 ## 🧪 Struktur Unit & Widget Test Otomatis (Mobile)
 
 File test terletak di folder `mobile/test/`:
-- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk `UserModel`, `AuthTokenModel`, `WorkspaceModel`, `WorkspaceMemberModel`, `EnvironmentModel`, `ServerModel`, `ConnectionTestModel`, `ServerMetricsModel`, `ServiceModel`, `ServiceListModel`, `ServiceActionResultModel`, `LogEntryModel`, dan `LogResponseModel` (Step 09).
+- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk `UserModel`, `AuthTokenModel`, `WorkspaceModel`, `WorkspaceMemberModel`, `EnvironmentModel`, `ServerModel`, `ConnectionTestModel`, `ServerMetricsModel`, `ServiceModel`, `ServiceListModel`, `ServiceActionResultModel`, `LogEntryModel`, `LogResponseModel`, `DockerStatusModel`, `DockerContainerModel`, `DockerContainerDetailModel`, `DockerComposeProjectModel`, dan `DockerComposeStatusModel` (Step 10).
 - `api_exception_test.dart`: Pengujian parsing error backend, handling status code HTTP (400, 401, 403, 404, 409, 422, 500) dan timeout connection.
 - `widgets_test.dart`: Pengujian rendering dan event listener pada Base Widgets (`AppButton`, `AppTextField`, `AppStatusBadge`, `AppCard`).
 - `widget_test.dart`: Pengujian inisialisasi aplikasi `DevOpsHubApp` dan halaman startup.
@@ -222,4 +265,5 @@ Jalankan seluruh test:
 ```bash
 cd mobile && flutter test
 ```
+
 

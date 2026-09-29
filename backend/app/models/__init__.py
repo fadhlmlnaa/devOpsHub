@@ -6,6 +6,7 @@ from app.models.environment import Environment
 from app.models.server import Server
 from app.models.server_credential import ServerCredential
 from app.models.refresh_token import RefreshToken
+from app.models.docker_compose import DockerComposeProject
 
 __all__ = [
     "Base",
@@ -17,4 +18,5 @@ __all__ = [
     "Server",
     "ServerCredential",
     "RefreshToken",
+    "DockerComposeProject",
 ]
