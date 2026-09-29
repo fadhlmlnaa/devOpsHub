@@ -71,4 +71,5 @@ async def get_service_logs(
         service_name=service_name,
         lines=lines,
         since=since,
+        db=db,
     )

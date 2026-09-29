@@ -70,7 +70,7 @@ async def list_services(
 ):
     server = _get_server_or_404(db, workspace_id, server_id)
     filter_state = None if state == "all" else state
-    return await service_svc.list_services(server=server, state=filter_state, limit=limit)
+    return await service_svc.list_services(server=server, state=filter_state, limit=limit, db=db)
 
 
 @router.get(
@@ -100,7 +100,7 @@ async def get_service(
 ):
     validate_safe_identifier(service_name, "service_name")
     server = _get_server_or_404(db, workspace_id, server_id)
-    return await service_svc.get_service(server=server, service_name=service_name)
+    return await service_svc.get_service(server=server, service_name=service_name, db=db)
 
 
 @router.post(
@@ -128,6 +128,7 @@ async def start_service(
         service_name=service_name,
         action="start",
         confirm=payload.confirm,
+        db=db,
     )
 
     audit = AuditService(db)
@@ -171,6 +172,7 @@ async def stop_service(
         service_name=service_name,
         action="stop",
         confirm=payload.confirm,
+        db=db,
     )
 
     audit = AuditService(db)
@@ -214,6 +216,7 @@ async def restart_service(
         service_name=service_name,
         action="restart",
         confirm=payload.confirm,
+        db=db,
     )
 
     audit = AuditService(db)
@@ -257,6 +260,7 @@ async def reload_service(
         service_name=service_name,
         action="reload",
         confirm=payload.confirm,
+        db=db,
     )
 
     audit = AuditService(db)
