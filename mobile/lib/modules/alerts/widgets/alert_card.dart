@@ -164,20 +164,27 @@ class AlertCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.dns_outlined, size: 14, color: AppColors.textMuted),
-                      const SizedBox(width: 6),
-                      Text(
-                        alert.serverName ?? alert.environmentName ?? 'Workspace-wide',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Row(
+                      children: [
+                        const Icon(Icons.dns_outlined, size: 14, color: AppColors.textMuted),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            alert.serverName ?? alert.environmentName ?? 'Workspace-wide',
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   if (alert.currentValue != null && alert.thresholdValue != null)
                     Text(
                       'Nilai: ${alert.currentValue?.toStringAsFixed(1)} (Batas: ${alert.thresholdValue?.toStringAsFixed(1)})',

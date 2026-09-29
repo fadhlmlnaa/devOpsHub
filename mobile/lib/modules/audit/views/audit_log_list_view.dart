@@ -174,6 +174,7 @@ class AuditLogListView extends StatelessWidget {
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: Text(
@@ -182,8 +183,11 @@ class AuditLogListView extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -213,10 +217,14 @@ class AuditLogListView extends StatelessWidget {
               children: [
                 Icon(Icons.person_outline, size: 16, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                 const SizedBox(width: 6),
-                Text(
-                  item.user != null ? '${item.user!.name} (${item.user!.email})' : 'Sistem / Anonim',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                Expanded(
+                  child: Text(
+                    item.user != null ? '${item.user!.name} (${item.user!.email})' : 'Sistem / Anonim',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -226,10 +234,14 @@ class AuditLogListView extends StatelessWidget {
               children: [
                 Icon(Icons.category_outlined, size: 16, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                 const SizedBox(width: 6),
-                Text(
-                  'Tipe: ${item.resourceType}${item.resourceId != null ? ' (${item.resourceId})' : ''}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                Expanded(
+                  child: Text(
+                    'Tipe: ${item.resourceType}${item.resourceId != null ? ' (${item.resourceId})' : ''}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -240,10 +252,14 @@ class AuditLogListView extends StatelessWidget {
                 children: [
                   Icon(Icons.lan_outlined, size: 16, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                   const SizedBox(width: 6),
-                  Text(
-                    'IP: ${item.ipAddress}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                  Expanded(
+                    child: Text(
+                      'IP: ${item.ipAddress}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
