@@ -6,6 +6,8 @@ import '../../../core/widgets/app_bottom_sheet.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_status_badge.dart';
+import '../../../core/widgets/app_text_field.dart';
+import '../../../data/models/workspace_member_model.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../environment/controllers/environment_controller.dart';
 import '../../environment/widgets/create_environment_sheet.dart';
@@ -26,7 +28,7 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
   final ServerController _serverController = Get.find<ServerController>();
   final AuthController _authController = Get.find<AuthController>();
 
-  int _selectedTab = 0; // 0 = Environments, 1 = Servers
+  int _selectedTab = 0; // 0 = Environments, 1 = Servers, 2 = Members
 
   @override
   void initState() {
@@ -39,6 +41,7 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
     if (ws != null) {
       _envController.loadEnvironments(ws.id);
       _serverController.loadServers(ws.id);
+      _workspaceController.loadMembers(ws.id);
     }
   }
 
@@ -46,6 +49,224 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
     AppBottomSheet.show(
       context: context,
       child: CreateEnvironmentSheet(workspaceId: wsId),
+    );
+  }
+
+  void _showAddMemberModal(BuildContext context, String wsId) {
+    final emailController = TextEditingController();
+    final selectedRole = 'DEVELOPER'.obs;
+    final formKey = GlobalKey<FormState>();
+
+    AppBottomSheet.show(
+      context: context,
+      child: Form(
+        key: formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.person_add_rounded, color: AppColors.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Undang Anggota', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                      Text('Tambahkan anggota baru ke workspace ini', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            AppTextField(
+              label: 'Email Pengguna',
+              hint: 'user@example.com',
+              keyboardType: TextInputType.emailAddress,
+              prefixIcon: const Icon(Icons.email_outlined, color: AppColors.textSecondary, size: 18),
+              controller: emailController,
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Email wajib diisi';
+                if (!v.contains('@') || !v.contains('.')) return 'Format email tidak valid';
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            const Text('Pilih Role Anggota', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+            const SizedBox(height: 8),
+            Obx(() => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selectedRole.value,
+                  dropdownColor: AppColors.surfaceElevated,
+                  isExpanded: true,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'ADMIN',
+                      child: Text('ADMIN - Akses Penuh Konfigurasi & Member', style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                    ),
+                    DropdownMenuItem(
+                      value: 'DEVELOPER',
+                      child: Text('DEVELOPER - Akses Server & Deployment', style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                    ),
+                    DropdownMenuItem(
+                      value: 'VIEWER',
+                      child: Text('VIEWER - Hanya Lihat Monitoring & Status', style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                    ),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) selectedRole.value = val;
+                  },
+                ),
+              ),
+            )),
+            const SizedBox(height: 24),
+            Obx(() => AppButton(
+              text: 'Kirim Undangan / Tambahkan',
+              isLoading: _workspaceController.isActionInProgress.value,
+              onPressed: () async {
+                if (formKey.currentState?.validate() == true) {
+                  final ok = await _workspaceController.addMember(
+                    workspaceId: wsId,
+                    email: emailController.text,
+                    role: selectedRole.value,
+                  );
+                  if (ok && mounted) {
+                    Get.back();
+                  }
+                }
+              },
+            )),
+            const SizedBox(height: 12),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showChangeRoleModal(BuildContext context, String wsId, WorkspaceMemberModel member) {
+    final selectedRole = member.role.toUpperCase().obs;
+
+    AppBottomSheet.show(
+      context: context,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.manage_accounts_rounded, color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Ubah Role Anggota', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                    Text(member.userName ?? member.userEmail ?? member.userId, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Text('Pilih Role Baru', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+          const SizedBox(height: 8),
+          Obx(() => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: ['ADMIN', 'DEVELOPER', 'VIEWER'].contains(selectedRole.value) ? selectedRole.value : 'DEVELOPER',
+                dropdownColor: AppColors.surfaceElevated,
+                isExpanded: true,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.textSecondary),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'ADMIN',
+                    child: Text('ADMIN - Akses Penuh Konfigurasi & Member', style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                  ),
+                  DropdownMenuItem(
+                    value: 'DEVELOPER',
+                    child: Text('DEVELOPER - Akses Server & Deployment', style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                  ),
+                  DropdownMenuItem(
+                    value: 'VIEWER',
+                    child: Text('VIEWER - Hanya Lihat Monitoring & Status', style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
+                  ),
+                ],
+                onChanged: (val) {
+                  if (val != null) selectedRole.value = val;
+                },
+              ),
+            ),
+          )),
+          const SizedBox(height: 24),
+          Obx(() => AppButton(
+            text: 'Simpan Perubahan Role',
+            isLoading: _workspaceController.isActionInProgress.value,
+            onPressed: () async {
+              final ok = await _workspaceController.updateMemberRole(
+                workspaceId: wsId,
+                userId: member.userId,
+                newRole: selectedRole.value,
+              );
+              if (ok && mounted) {
+                Get.back();
+              }
+            },
+          )),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRemoveMember(BuildContext context, String wsId, WorkspaceMemberModel member) {
+    Get.defaultDialog(
+      title: 'Hapus Anggota',
+      titleStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      middleText: 'Apakah Anda yakin ingin menghapus "${member.userName ?? member.userEmail ?? member.userId}" dari workspace ini?',
+      backgroundColor: AppColors.surface,
+      textConfirm: 'Hapus',
+      textCancel: 'Batal',
+      confirmTextColor: Colors.white,
+      buttonColor: AppColors.error,
+      cancelTextColor: AppColors.textSecondary,
+      onConfirm: () async {
+        Get.back();
+        await _workspaceController.removeMember(
+          workspaceId: wsId,
+          userId: member.userId,
+          name: member.userName ?? member.userEmail,
+        );
+      },
     );
   }
 
@@ -244,7 +465,7 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
 
                   const SizedBox(height: 20),
 
-                  // Segmented Tabs: Environments vs Servers
+                  // Segmented Tabs: Environments vs Servers vs Members
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
@@ -254,8 +475,9 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
                     ),
                     child: Row(
                       children: [
-                        Expanded(child: _buildTabButton(0, 'Environments (${_envController.environments.length})', Icons.layers_rounded)),
+                        Expanded(child: _buildTabButton(0, 'Envs (${_envController.environments.length})', Icons.layers_rounded)),
                         Expanded(child: _buildTabButton(1, 'Servers (${_serverController.servers.length})', Icons.dns_rounded)),
+                        Expanded(child: _buildTabButton(2, 'Members (${_workspaceController.members.length})', Icons.people_alt_rounded)),
                       ],
                     ),
                   ),
@@ -302,6 +524,27 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
                     ),
                     const SizedBox(height: 8),
                     _buildServerList(workspace.id),
+                  ],
+
+                  // Tab 2: Members List
+                  if (_selectedTab == 2) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Anggota & Hak Akses',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        ),
+                        if (isOwnerOrAdmin)
+                          TextButton.icon(
+                            icon: const Icon(Icons.person_add_rounded, size: 18),
+                            label: const Text('Undang'),
+                            onPressed: () => _showAddMemberModal(context, workspace.id),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildMemberList(workspace.id, isOwnerOrAdmin, workspace.role),
                   ],
 
                   const SizedBox(height: 24),
@@ -597,6 +840,157 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
                   ),
                 ),
                 const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildMemberList(String workspaceId, bool isOwnerOrAdmin, String currentRole) {
+    final members = _workspaceController.members;
+    final currentUserId = _authController.currentUser.value?.id;
+
+    if (_workspaceController.isLoadingMembers.value && members.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(24.0),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(AppColors.primary))),
+      );
+    }
+
+    if (members.isEmpty) {
+      return AppCard(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20.0),
+          child: Column(
+            children: [
+              const Icon(Icons.people_outline_rounded, size: 36, color: AppColors.textMuted),
+              const SizedBox(height: 8),
+              const Text('Belum ada Anggota', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 4),
+              const Text('Undang rekan tim untuk berkolaborasi dalam workspace ini.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              if (isOwnerOrAdmin) ...[
+                const SizedBox(height: 14),
+                AppButton(
+                  text: 'Undang Anggota',
+                  width: 160,
+                  height: 38,
+                  onPressed: () => _showAddMemberModal(context, workspaceId),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: members.map((member) {
+        final isSelf = currentUserId != null && (member.userId == currentUserId || member.id == currentUserId);
+        final isMemberOwner = member.role.toUpperCase() == 'OWNER';
+        final canManage = isOwnerOrAdmin && (!isMemberOwner || currentRole.toUpperCase() == 'OWNER') && !isSelf;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10.0),
+          child: AppCard(
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    (member.userName != null && member.userName!.isNotEmpty)
+                        ? member.userName!.substring(0, 1).toUpperCase()
+                        : (member.userEmail != null && member.userEmail!.isNotEmpty)
+                            ? member.userEmail!.substring(0, 1).toUpperCase()
+                            : 'U',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primary),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              member.userName ?? member.userEmail ?? 'Member',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isSelf) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text('You', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        member.userEmail ?? member.userId,
+                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                AppStatusBadge.role(member.role),
+                if (canManage) ...[
+                  const SizedBox(width: 4),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert_rounded, color: AppColors.textMuted, size: 20),
+                    color: AppColors.surfaceElevated,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: const BorderSide(color: AppColors.border)),
+                    onSelected: (action) {
+                      if (action == 'role') {
+                        _showChangeRoleModal(context, workspaceId, member);
+                      } else if (action == 'remove') {
+                        _confirmRemoveMember(context, workspaceId, member);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'role',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined, size: 16, color: AppColors.primary),
+                            SizedBox(width: 8),
+                            Text('Ubah Role', style: TextStyle(fontSize: 13, color: AppColors.textPrimary)),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'remove',
+                        child: Row(
+                          children: [
+                            Icon(Icons.person_remove_outlined, size: 16, color: AppColors.error),
+                            SizedBox(width: 8),
+                            Text('Hapus Anggota', style: TextStyle(fontSize: 13, color: AppColors.error)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

@@ -1,3 +1,4 @@
+import '../models/workspace_member_model.dart';
 import '../models/workspace_model.dart';
 import '../../core/network/api_client.dart';
 
@@ -55,4 +56,53 @@ class WorkspaceService {
     );
     return WorkspaceModel.fromJson(response.data as Map<String, dynamic>);
   }
+
+  Future<List<WorkspaceMemberModel>> getWorkspaceMembers(String workspaceId) async {
+    final response = await apiClient.get('/workspaces/$workspaceId/members');
+    final data = response.data;
+    if (data is List) {
+      return data
+          .map((item) => WorkspaceMemberModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  }
+
+  Future<WorkspaceMemberModel> addWorkspaceMember(
+    String workspaceId, {
+    required String email,
+    required String role,
+  }) async {
+    final response = await apiClient.post(
+      '/workspaces/$workspaceId/members',
+      data: {
+        'email': email.trim().toLowerCase(),
+        'role': role.toUpperCase(),
+      },
+    );
+    return WorkspaceMemberModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<WorkspaceMemberModel> updateWorkspaceMemberRole(
+    String workspaceId,
+    String userId, {
+    required String role,
+  }) async {
+    final response = await apiClient.patch(
+      '/workspaces/$workspaceId/members/$userId',
+      data: {
+        'role': role.toUpperCase(),
+      },
+    );
+    return WorkspaceMemberModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<void> removeWorkspaceMember(String workspaceId, String userId) async {
+    await apiClient.delete('/workspaces/$workspaceId/members/$userId');
+  }
+
+  Future<void> leaveWorkspace(String workspaceId) async {
+    await apiClient.delete('/workspaces/$workspaceId/members/me');
+  }
 }
+
