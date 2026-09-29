@@ -144,6 +144,8 @@ class ServerController extends GetxController {
       final res = await serverService.testConnection(workspaceId, serverId);
       connectionTestResult.value = res;
 
+      final updatedStatus = res.status;
+
       // Update selected server status in-memory
       if (selectedServer.value != null && selectedServer.value!.id == serverId) {
         selectedServer.value = ServerModel(
@@ -161,9 +163,34 @@ class ServerController extends GetxController {
           environment: selectedServer.value!.environment,
           hasCredential: selectedServer.value!.hasCredential,
           authType: selectedServer.value!.authType,
-          status: res.status,
+          status: updatedStatus,
           createdAt: selectedServer.value!.createdAt,
           updatedAt: selectedServer.value!.updatedAt,
+        );
+      }
+
+      // Update in servers list for WorkspaceHomeView
+      final idx = servers.indexWhere((s) => s.id == serverId);
+      if (idx != -1) {
+        final existing = servers[idx];
+        servers[idx] = ServerModel(
+          id: existing.id,
+          workspaceId: existing.workspaceId,
+          environmentId: existing.environmentId,
+          name: existing.name,
+          hostname: existing.hostname,
+          ipAddress: existing.ipAddress,
+          sshPort: existing.sshPort,
+          username: existing.username,
+          operatingSystem: existing.operatingSystem,
+          description: existing.description,
+          isActive: existing.isActive,
+          environment: existing.environment,
+          hasCredential: existing.hasCredential,
+          authType: existing.authType,
+          status: updatedStatus,
+          createdAt: existing.createdAt,
+          updatedAt: existing.updatedAt,
         );
       }
     } on ApiException catch (e) {
@@ -172,14 +199,65 @@ class ServerController extends GetxController {
         message: e.message,
         status: 'OFFLINE',
       );
+      _updateStatusInList(serverId, 'OFFLINE');
     } catch (e) {
       connectionTestResult.value = ConnectionTestModel(
         success: false,
         message: 'Gagal menguji koneksi SSH.',
         status: 'OFFLINE',
       );
+      _updateStatusInList(serverId, 'OFFLINE');
     } finally {
       isTestingConnection.value = false;
+    }
+  }
+
+  void _updateStatusInList(String serverId, String status) {
+    if (selectedServer.value != null && selectedServer.value!.id == serverId) {
+      final s = selectedServer.value!;
+      selectedServer.value = ServerModel(
+        id: s.id,
+        workspaceId: s.workspaceId,
+        environmentId: s.environmentId,
+        name: s.name,
+        hostname: s.hostname,
+        ipAddress: s.ipAddress,
+        sshPort: s.sshPort,
+        username: s.username,
+        operatingSystem: s.operatingSystem,
+        description: s.description,
+        isActive: s.isActive,
+        environment: s.environment,
+        hasCredential: s.hasCredential,
+        authType: s.authType,
+        status: status,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+      );
+    }
+
+    final idx = servers.indexWhere((s) => s.id == serverId);
+    if (idx != -1) {
+      final existing = servers[idx];
+      servers[idx] = ServerModel(
+        id: existing.id,
+        workspaceId: existing.workspaceId,
+        environmentId: existing.environmentId,
+        name: existing.name,
+        hostname: existing.hostname,
+        ipAddress: existing.ipAddress,
+        sshPort: existing.sshPort,
+        username: existing.username,
+        operatingSystem: existing.operatingSystem,
+        description: existing.description,
+        isActive: existing.isActive,
+        environment: existing.environment,
+        hasCredential: existing.hasCredential,
+        authType: existing.authType,
+        status: status,
+        createdAt: existing.createdAt,
+        updatedAt: existing.updatedAt,
+      );
     }
   }
 }
