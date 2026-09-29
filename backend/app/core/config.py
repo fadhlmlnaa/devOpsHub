@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     SSH_COMMAND_TIMEOUT: int = 15
     MONITORING_CONNECT_TIMEOUT: int = 5
     MONITORING_COMMAND_TIMEOUT: int = 5
+    SERVICE_CONNECTION_TIMEOUT: int = 5
+    SERVICE_COMMAND_TIMEOUT: int = 10
 
     model_config = SettingsConfigDict(
         env_file=".env",

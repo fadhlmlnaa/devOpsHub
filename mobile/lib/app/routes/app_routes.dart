@@ -8,4 +8,5 @@ abstract class AppRoutes {
   static const workspaceHome = '/workspaces/:id';
   static const addServer = '/workspaces/:id/servers/add';
   static const serverDetail = '/workspaces/:id/servers/:serverId';
+  static const services = '/workspaces/:id/servers/:serverId/services';
 }

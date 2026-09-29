@@ -5,10 +5,12 @@ import '../data/services/auth_service.dart';
 import '../data/services/workspace_service.dart';
 import '../data/services/environment_service.dart';
 import '../data/services/server_service.dart';
+import '../data/services/service_service.dart';
 import '../modules/auth/controllers/auth_controller.dart';
 import '../modules/workspace/controllers/workspace_controller.dart';
 import '../modules/environment/controllers/environment_controller.dart';
 import '../modules/server/controllers/server_controller.dart';
+import '../modules/service/controllers/service_controller.dart';
 
 class InitialBinding extends Bindings {
   @override
@@ -33,13 +35,16 @@ class InitialBinding extends Bindings {
     final serverService = ServerService(apiClient: apiClient);
     Get.put<ServerService>(serverService, permanent: true);
 
+    final serviceService = ServiceService(apiClient: apiClient);
+    Get.put<ServiceService>(serviceService, permanent: true);
+
     // Global Auth Controller
     Get.put<AuthController>(
       AuthController(authService: authService),
       permanent: true,
     );
 
-    // Workspace, Environment & Server Controllers
+    // Workspace, Environment, Server & Service Controllers
     Get.lazyPut<WorkspaceController>(
       () => WorkspaceController(
         workspaceService: workspaceService,
@@ -58,6 +63,13 @@ class InitialBinding extends Bindings {
     Get.lazyPut<ServerController>(
       () => ServerController(
         serverService: serverService,
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<ServiceController>(
+      () => ServiceController(
+        serviceService: serviceService,
       ),
       fenix: true,
     );

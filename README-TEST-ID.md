@@ -156,14 +156,32 @@ flutter test
 
 ---
 
-### Skenario Uji 11: Auto-Refresh Token & Sesi Aman
+### Skenario Uji 11: Manajemen Service Linux Systemd (Step 08)
+1. Buka detail server di halaman **Server Detail**.
+2. Scroll ke bagian kartu **Layanan & Services (Systemd)** lalu klik tombol **"Buka Manajemen Services"**.
+3. Halaman daftar service (`ServiceListView`) akan terbuka dan memuat daftar unit service systemd:
+   - Gunakan search bar untuk mencari service spesifik (contoh: `nginx`, `docker`, `postgresql`, `odoo`).
+   - Gunakan filter chips (**Semua**, **Active (Running)**, **Inactive (Stopped)**, **Failed**) untuk memfilter daftar service.
+4. Klik salah satu card service (contoh: `nginx.service`) untuk membuka **Service Detail**:
+   - Menampilkan status badge (`RUNNING`, `STOPPED`, `FAILED`, `UNKNOWN`), startup boot enabled, main PID, sub-state, load-state, dan waktu aktif.
+5. Uji tombol aksi (**Start**, **Stop**, **Restart**, **Reload**):
+   - Klik tombol **Restart**: Dialog konfirmasi muncul dengan peringatan server target.
+   - Klik **RESTART**: Tombol berubah menjadi loading state, backend mengeksekusi `sudo -n systemctl restart nginx.service`.
+   - Setelah selesai, backend mengembalikan status sebelum & sesudah aksi, memunculkan notifikasi berhasil (snackbar), dan status service otomatis ter-refresh secara real-time.
+6. Uji otorisasi dan proteksi:
+   - Pengguna dengan role `VIEWER` atau `DEVELOPER` dapat melihat daftar & detail service, namun tombol aksi Start/Stop/Restart/Reload dinonaktifkan dengan penanda gembok oranye.
+   - Hanya role `OWNER` dan `ADMIN` yang diizinkan menjalankan operasi mutasi.
+
+---
+
+### Skenario Uji 12: Auto-Refresh Token & Sesi Aman
 1. Sesi pengguna (Access Token & Refresh Token) tersimpan di storage terenkripsi perangkat (`flutter_secure_storage`).
 2. Jika Access Token kadaluarsa (401), `ApiClient` secara transparan memicu endpoint `/auth/refresh` di background, memperbarui token di storage, dan mengulang request data tanpa mengganggu interaksi pengguna.
 3. Jika Refresh Token juga kadaluarsa atau di-revoke, sesi dibersihkan dan pengguna diarahkan kembali ke layar Login.
 
 ---
 
-### Skenario Uji 12: Logout
+### Skenario Uji 13: Logout
 1. Klik tombol **Logout** di AppBar.
 2. Dialog konfirmasi muncul.
 3. Klik **"Logout"**.
@@ -174,7 +192,7 @@ flutter test
 ## 🧪 Struktur Unit & Widget Test Otomatis (Mobile)
 
 File test terletak di folder `mobile/test/`:
-- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk `UserModel`, `AuthTokenModel`, `WorkspaceModel`, `WorkspaceMemberModel`, `EnvironmentModel`, `ServerModel`, `ConnectionTestModel`, dan `ServerMetricsModel` (Step 07).
+- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk `UserModel`, `AuthTokenModel`, `WorkspaceModel`, `WorkspaceMemberModel`, `EnvironmentModel`, `ServerModel`, `ConnectionTestModel`, `ServerMetricsModel`, `ServiceModel`, `ServiceListModel`, dan `ServiceActionResultModel` (Step 08).
 - `api_exception_test.dart`: Pengujian parsing error backend, handling status code HTTP (400, 401, 403, 404, 409, 422, 500) dan timeout connection.
 - `widgets_test.dart`: Pengujian rendering dan event listener pada Base Widgets (`AppButton`, `AppTextField`, `AppStatusBadge`, `AppCard`).
 - `widget_test.dart`: Pengujian inisialisasi aplikasi `DevOpsHubApp` dan halaman startup.

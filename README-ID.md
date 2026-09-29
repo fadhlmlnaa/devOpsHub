@@ -118,6 +118,28 @@ Buka Aplikasi (Splash)
    - Zero Database Bloat: Tidak melakukan insert data historis per request.
    - Flutter Live Dashboard: Visual progress bar (cyan/mint), gauge metrics, offline diagnostics banner, manual refresh & pull-to-refresh.
 
+7. **Step 08 — Service Management (Linux Systemd)**:
+   - Manajemen siklus hidup unit service Linux systemd secara aman dari perangkat mobile (Start, Stop, Restart, Reload).
+   - **Systemd Discovery & Status**:
+     - `GET /api/v1/workspaces/{workspace_id}/servers/{server_id}/services` (filter: all, active, inactive, failed; limit <= 200).
+     - `GET /api/v1/workspaces/{workspace_id}/servers/{server_id}/services/{service_name}` (detail load state, active state, sub state, PID, enabled status, active timestamp).
+   - **Lifecycle Actions**:
+     - `POST /api/v1/workspaces/{workspace_id}/servers/{server_id}/services/{service_name}/start`
+     - `POST /api/v1/workspaces/{workspace_id}/servers/{server_id}/services/{service_name}/stop`
+     - `POST /api/v1/workspaces/{workspace_id}/servers/{server_id}/services/{service_name}/restart`
+     - `POST /api/v1/workspaces/{workspace_id}/servers/{server_id}/services/{service_name}/reload`
+   - **Keamanan & Guarding**:
+     - **Strict Whitelist Validation**: Service name wajib sesuai regex `^[A-Za-z0-9_.@:-]+\.service$`. Menolak karakter berbahaya (`;`, `&&`, `|`, `$()`, backticks, `/`, spasi, path traversal).
+     - **Explicit Confirmation Guard**: Seluruh mutasi membutuhkan payload `{"confirm": true}`.
+     - **Sudo / Privilege Handling**: Mendukung user `root` atau user dengan `passwordless sudo` (`sudo -n systemctl ...`). Tidak menyimpan password sudo dalam plaintext. Jika sudo membutuhkan password interaktif, backend mengembalikan pesan error yang jelas dan aman.
+     - **RBAC Matrix**: `VIEWER` dan `DEVELOPER` hanya memiliki izin baca (GET). Mutasi (Start, Stop, Restart, Reload) dibatasi hanya untuk `ADMIN` dan `OWNER` (HTTP 403 jika dilanggar).
+     - **No Arbitrary Shell**: Backend hanya menjalankan perintah systemd terisolasi yang sudah didefinisikan. Tidak ada endpoint shell/command bebas.
+   - **Flutter Mobile Integration**:
+     - Service List View dengan search box, filter chips (Semua, Active, Inactive, Failed), dan pull-to-refresh.
+     - Service Detail View dengan status badge dinamis (RUNNING, STOPPED, FAILED, UNKNOWN), spesifikasi unit systemd, dan action buttons interaktif.
+     - Modal Dialog Konfirmasi dengan penjelasan dampak sebelum action dieksekusi.
+     - State button otomatis dinonaktifkan (disabled) jika operasi tidak relevan dengan status saat ini atau user tidak memiliki role mutasi.
+
 ---
 
 ## 4. Menjalankan & Menguji Aplikasi

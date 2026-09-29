@@ -195,7 +195,17 @@ class _ServerDetailViewState extends State<ServerDetailView> {
 
                   const SizedBox(height: 24),
 
-                  // 6. Test Connection Action
+                  // 6. Services (Systemd) Management Section
+                  const Text(
+                    'Layanan & Services (Systemd)',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildServicesCard(server),
+
+                  const SizedBox(height: 24),
+
+                  // 7. Test Connection Action
                   _buildTestConnectionSection(),
                   const SizedBox(height: 30),
                 ],
@@ -660,6 +670,62 @@ class _ServerDetailViewState extends State<ServerDetailView> {
       default:
         return const AppStatusBadge(label: 'UNKNOWN', color: AppColors.textMuted);
     }
+  }
+
+  Widget _buildServicesCard(ServerModel server) {
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.tealAccent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.miscellaneous_services_rounded, color: Colors.tealAccent, size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Linux Systemd Services',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Kelola status & lifecycle service (Start, Stop, Restart, Reload)',
+                      style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          AppButton(
+            text: 'Buka Manajemen Services',
+            icon: const Icon(Icons.open_in_new_rounded, size: 18, color: AppColors.primary),
+            variant: AppButtonVariant.outline,
+            onPressed: () {
+              Get.toNamed(
+                '/workspaces/$_workspaceId/servers/$_serverId/services',
+                arguments: {
+                  'workspace_id': _workspaceId,
+                  'server_id': _serverId,
+                  'server_name': server.name,
+                  'user_role': 'OWNER',
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Color _getBarColor(double pct) {

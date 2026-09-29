@@ -8,6 +8,7 @@ import 'package:devops_hub/data/models/environment_model.dart';
 import 'package:devops_hub/data/models/server_model.dart';
 import 'package:devops_hub/data/models/connection_test_model.dart';
 import 'package:devops_hub/data/models/monitoring_metrics_model.dart';
+import 'package:devops_hub/data/models/service_model.dart';
 import 'package:devops_hub/core/utils/formatters.dart';
 
 void main() {
@@ -272,6 +273,94 @@ void main() {
       expect(AppFormatters.formatUptime(3600 * 5), '5h');
       expect(AppFormatters.formatUptime(45), '45s');
       expect(AppFormatters.formatUptime(null), 'Baru menyala');
+    });
+  });
+
+  group('ServiceModel & ServiceListModel JSON serialization', () {
+    test('ServiceModel parses running, stopped, and failed states', () {
+      final runningJson = {
+        'name': 'nginx.service',
+        'load_state': 'loaded',
+        'active_state': 'active',
+        'sub_state': 'running',
+        'description': 'A high performance web server',
+        'enabled': true,
+        'main_pid': 1234,
+      };
+
+      final failedJson = {
+        'name': 'odoo.service',
+        'load_state': 'loaded',
+        'active_state': 'failed',
+        'sub_state': 'failed',
+        'description': 'Odoo ERP Server',
+        'enabled': true,
+      };
+
+      final stoppedJson = {
+        'name': 'redis.service',
+        'load_state': 'loaded',
+        'active_state': 'inactive',
+        'sub_state': 'dead',
+        'description': 'Redis In-Memory Data Store',
+        'enabled': false,
+      };
+
+      final running = ServiceModel.fromJson(runningJson);
+      expect(running.name, 'nginx.service');
+      expect(running.status, 'RUNNING');
+      expect(running.isRunning, true);
+      expect(running.mainPid, 1234);
+
+      final failed = ServiceModel.fromJson(failedJson);
+      expect(failed.status, 'FAILED');
+      expect(failed.isFailed, true);
+
+      final stopped = ServiceModel.fromJson(stoppedJson);
+      expect(stopped.status, 'STOPPED');
+      expect(stopped.isStopped, true);
+    });
+
+    test('ServiceListModel parses full service response list', () {
+      final json = {
+        'server_id': '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c',
+        'systemd_supported': true,
+        'services': [
+          {
+            'name': 'postgresql.service',
+            'load_state': 'loaded',
+            'active_state': 'active',
+            'sub_state': 'running',
+            'description': 'PostgreSQL Database Server',
+            'enabled': true,
+          }
+        ],
+        'checked_at': '2026-09-29T10:00:00Z',
+      };
+
+      final list = ServiceListModel.fromJson(json);
+      expect(list.serverId, '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c');
+      expect(list.systemdSupported, true);
+      expect(list.services.length, 1);
+      expect(list.services.first.name, 'postgresql.service');
+    });
+
+    test('ServiceActionResultModel parses start/restart responses', () {
+      final json = {
+        'success': true,
+        'service': 'nginx.service',
+        'action': 'restart',
+        'previous_state': {'active_state': 'active', 'sub_state': 'running'},
+        'current_state': {'active_state': 'active', 'sub_state': 'running'},
+        'message': 'Service nginx.service berhasil di-restart.',
+        'checked_at': '2026-09-29T10:00:00Z',
+      };
+
+      final actionRes = ServiceActionResultModel.fromJson(json);
+      expect(actionRes.success, true);
+      expect(actionRes.service, 'nginx.service');
+      expect(actionRes.action, 'restart');
+      expect(actionRes.currentState?.activeState, 'active');
     });
   });
 }
