@@ -60,7 +60,7 @@ class AgentManager:
         db.refresh(token_obj)
 
         installer_command = (
-            f"sudo python3 -m devops_agent.install --server {backend_url} --token {raw_token}"
+            f"sudo /opt/devops-agent/venv/bin/python -m agent.main enroll --server {backend_url} --token {raw_token} --config /etc/devops-agent/config.json"
         )
 
         AuditService(db).log(
