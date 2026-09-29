@@ -18,8 +18,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["X-XSS-Protection"] = "1; mode=block"
             response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
 
-            # If running in production with HTTPS scheme, add Strict-Transport-Security
-            if settings.ENVIRONMENT.lower() == "production" and request.url.scheme == "https":
-                response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            # If running in production or HSTS explicitly enabled, add Strict-Transport-Security
+            if (settings.is_production or settings.HSTS_ENABLED) and (request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"):
+                response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
 
         return response
+

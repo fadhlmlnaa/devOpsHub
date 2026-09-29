@@ -1,16 +1,19 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import check_db_connection, SessionLocal
+from app.core.redis import check_redis_connection
+from app.core.request_id import RequestIDMiddleware
+from app.core.security_headers import SecurityHeadersMiddleware
+from app.core.logging_config import setup_logging
+from app.core.errors import register_exception_handlers
 from app.api.v1.router import api_v1_router
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+# Setup application logging
+setup_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -46,7 +49,16 @@ async def background_alert_scheduler():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Memulai DevOps Platform API Backend...")
+    logger.info(f"Memulai DevOps Platform API Backend (Env: {settings.APP_ENV})...")
+
+    # Production Startup Security Validation
+    prod_errors = settings.validate_production_settings()
+    if prod_errors:
+        for err in prod_errors:
+            logger.critical(f"FATAL STARTUP ERROR: {err}")
+        if settings.is_production:
+            raise RuntimeError(f"Startup digagalkan karena konfigurasi production tidak aman: {'; '.join(prod_errors)}")
+
     if check_db_connection():
         logger.info("Berhasil terhubung ke database PostgreSQL.")
     else:
@@ -63,16 +75,17 @@ async def lifespan(app: FastAPI):
     logger.info("Mematikan DevOps Platform API Backend...")
 
 
-from app.core.security_headers import SecurityHeadersMiddleware
-
 app = FastAPI(
     title="DevOps Mobile Platform API",
     description="Backend API untuk DevOps Mobile Platform",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
 )
+
+# Register Request ID Middleware (Outer)
+app.add_middleware(RequestIDMiddleware)
 
 # Add Security Headers Middleware
 app.add_middleware(SecurityHeadersMiddleware)
@@ -82,10 +95,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins if settings.cors_origins else ["*"],
     allow_credentials=True if settings.cors_origins != ["*"] else False,
-    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1)(:\d+)?$" if not settings.is_production else None,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register Global Exception Handlers
+register_exception_handlers(app)
 
 # Include API v1 Router
 app.include_router(api_v1_router)
@@ -93,8 +109,40 @@ app.include_router(api_v1_router)
 
 @app.get("/api/v1/health", tags=["Health"])
 def health_check():
+    """General health check for backward compatibility."""
     db_connected = check_db_connection()
     return {
         "status": "ok",
         "database": "ok" if db_connected else "disconnected",
+    }
+
+
+@app.get("/api/v1/health/live", tags=["Health"])
+def liveness_check():
+    """Lightweight liveness probe indicating process is running."""
+    return {
+        "status": "ok",
+        "app_env": settings.APP_ENV,
+        "version": "1.0.0",
+    }
+
+
+@app.get("/api/v1/health/ready", tags=["Health"])
+def readiness_check(response: Response):
+    """Readiness probe checking critical dependencies (PostgreSQL, Redis)."""
+    db_ok = check_db_connection()
+    redis_ok = check_redis_connection()
+
+    if not db_ok:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {
+            "status": "unavailable",
+            "database": "disconnected",
+            "redis": "connected" if redis_ok else "disconnected",
+        }
+
+    return {
+        "status": "ready",
+        "database": "connected",
+        "redis": "connected" if redis_ok else "disconnected",
     }

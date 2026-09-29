@@ -1,0 +1,154 @@
+services:
+  reverse-proxy:
+    image: nginx:alpine
+    container_name: devopshub_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/ssl:/etc/nginx/ssl:ro
+      - certbot_www:/var/www/certbot:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - devopshub_net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: devopshub_api
+    restart: always
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY:-2} --proxy-headers --forwarded-allow-ips='*'"
+    environment:
+      APP_ENV: production
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-devops}
+      DATABASE_USER: ${DATABASE_USER:-devops}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY}
+      AGENT_SECRET_KEY: ${AGENT_SECRET_KEY}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      SECURITY_HEADERS_ENABLED: "True"
+      HSTS_ENABLED: "True"
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8000/api/v1/health/live\")'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - devopshub_net
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: devopshub_worker
+    restart: always
+    command: python -m app.worker
+    environment:
+      APP_ENV: production
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-devops}
+      DATABASE_USER: ${DATABASE_USER:-devops}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      CREDENTIAL_ENCRYPTION_KEY: ${CREDENTIAL_ENCRYPTION_KEY}
+      AGENT_SECRET_KEY: ${AGENT_SECRET_KEY}
+      ALERT_ENABLE_BACKGROUND_SCHEDULER: "True"
+      ALERT_EVALUATION_INTERVAL_SECONDS: ${ALERT_EVALUATION_INTERVAL_SECONDS:-60}
+      AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-90}
+      JOB_RETENTION_DAYS: ${JOB_RETENTION_DAYS:-60}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - devopshub_net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: devopshub_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-devops}
+      POSTGRES_USER: ${DATABASE_USER:-devops}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    # In production, do NOT expose ports to host
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-devops} -d ${DATABASE_NAME:-devops}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devopshub_net
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+
+  redis:
+    image: redis:7-alpine
+    container_name: devopshub_redis
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_prod_data:/data
+    # In production, do NOT expose ports to host
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - devopshub_net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+  certbot_www:
+
+networks:
+  devopshub_net:
+    driver: bridge
