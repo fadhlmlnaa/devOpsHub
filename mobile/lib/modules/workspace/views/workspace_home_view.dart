@@ -319,38 +319,55 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.15),
+                          color: AppColors.success.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                          border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
                         ),
-                        child: const Text('Step 09 Active', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                        child: const Text('All 16 Modules Ready', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.success)),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _buildRoadmapCard(icon: Icons.speed_rounded, title: 'Monitoring', step: 'Step 07', isActive: true)),
+                      Expanded(child: _buildRoadmapCard(icon: Icons.speed_rounded, title: 'Monitoring', step: 'Telemetry', isActive: true)),
                       const SizedBox(width: 10),
-                      Expanded(child: _buildRoadmapCard(icon: Icons.miscellaneous_services_rounded, title: 'Services', step: 'Step 08', isActive: true)),
+                      Expanded(child: _buildRoadmapCard(icon: Icons.miscellaneous_services_rounded, title: 'Services', step: 'Systemd', isActive: true)),
                     ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(child: _buildRoadmapCard(icon: Icons.terminal_rounded, title: 'Systemd Logs', step: 'Step 09', isActive: true)),
+                      Expanded(child: _buildRoadmapCard(icon: Icons.terminal_rounded, title: 'Logs & Journal', step: 'Audit/Stream', isActive: true)),
                       const SizedBox(width: 10),
-                      Expanded(child: _buildRoadmapCard(icon: Icons.directions_boat_rounded, title: 'Docker', step: 'Step 10', isActive: false)),
+                      Expanded(child: _buildRoadmapCard(icon: Icons.directions_boat_rounded, title: 'Docker Engine', step: 'Containers', isActive: true)),
                     ],
                   ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(child: _buildRoadmapCard(icon: Icons.rocket_launch_rounded, title: 'Deployments', step: 'Step 11', isActive: false)),
+                      Expanded(child: _buildRoadmapCard(icon: Icons.rocket_launch_rounded, title: 'Deployments', step: 'Pipelines', isActive: true)),
                       const SizedBox(width: 10),
-                      Expanded(child: _buildRoadmapCard(icon: Icons.notifications_active_rounded, title: 'Alerts', step: 'Step 12', isActive: false)),
+                      Expanded(child: _buildRoadmapCard(icon: Icons.backup_rounded, title: 'Database Backup', step: 'Snapshots', isActive: true)),
                     ],
                   ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: _buildRoadmapCard(icon: Icons.notifications_active_rounded, title: 'Alert Engine', step: 'Real-Time', isActive: true)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildRoadmapCard(icon: Icons.hub_rounded, title: 'DevOps Agent', step: 'Outbound WSS', isActive: true)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: _buildRoadmapCard(icon: Icons.security_rounded, title: 'Security & RBAC', step: 'Audit Trail', isActive: true)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildRoadmapCard(icon: Icons.verified_user_rounded, title: 'Production Ready', step: 'Hardened', isActive: true)),
+                    ],
+                  ),
+
                 ],
               ),
             ),
