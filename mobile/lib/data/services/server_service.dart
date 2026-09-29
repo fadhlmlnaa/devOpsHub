@@ -1,6 +1,7 @@
 import '../models/server_model.dart';
 import '../models/connection_test_model.dart';
 import '../../core/network/api_client.dart';
+import '../../core/network/api_exception.dart';
 
 class ServerService {
   final ApiClient apiClient;
@@ -25,8 +26,14 @@ class ServerService {
   }
 
   Future<ServerModel> getServer(String workspaceId, String serverId) async {
+    if (workspaceId.trim().isEmpty || serverId.trim().isEmpty) {
+      throw ApiException(message: 'ID Workspace atau Server tidak valid.');
+    }
     final response = await apiClient.get('/workspaces/$workspaceId/servers/$serverId');
-    return ServerModel.fromJson(response.data as Map<String, dynamic>);
+    if (response.data is Map<String, dynamic>) {
+      return ServerModel.fromJson(response.data as Map<String, dynamic>);
+    }
+    throw ApiException(message: 'Format data server tidak valid.');
   }
 
   Future<ServerModel> createServer({

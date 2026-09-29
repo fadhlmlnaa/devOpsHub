@@ -5,6 +5,7 @@ import '../../../core/widgets/app_app_bar.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_status_badge.dart';
+import '../../../data/models/server_model.dart';
 import '../controllers/server_controller.dart';
 
 class ServerDetailView extends StatefulWidget {
@@ -22,13 +23,27 @@ class _ServerDetailViewState extends State<ServerDetailView> {
   @override
   void initState() {
     super.initState();
-    _workspaceId = Get.parameters['id'] ?? '';
-    _serverId = Get.parameters['serverId'] ?? '';
-    _controller.loadServerDetail(_workspaceId, _serverId);
+    final args = Get.arguments is Map ? Get.arguments as Map : {};
+    _workspaceId = (args['workspaceId'] as String?)?.isNotEmpty == true
+        ? args['workspaceId'] as String
+        : (Get.parameters['id'] ?? '');
+    _serverId = (args['serverId'] as String?)?.isNotEmpty == true
+        ? args['serverId'] as String
+        : (Get.parameters['serverId'] ?? '');
+
+    if (args['server'] is ServerModel) {
+      _controller.selectedServer.value = args['server'] as ServerModel;
+    }
+
+    if (_workspaceId.isNotEmpty && _serverId.isNotEmpty) {
+      _controller.loadServerDetail(_workspaceId, _serverId);
+    }
   }
 
   void _onTestConnection() {
-    _controller.testConnection(_workspaceId, _serverId);
+    if (_workspaceId.isNotEmpty && _serverId.isNotEmpty) {
+      _controller.testConnection(_workspaceId, _serverId);
+    }
   }
 
   void _onDeleteServer() {
@@ -43,10 +58,10 @@ class _ServerDetailViewState extends State<ServerDetailView> {
       buttonColor: AppColors.error,
       cancelTextColor: AppColors.textSecondary,
       onConfirm: () async {
-        Get.back();
+        Navigator.of(context).pop();
         final success = await _controller.deleteServer(_workspaceId, _serverId);
-        if (success) {
-          Get.back();
+        if (success && mounted) {
+          Navigator.of(context).pop();
         }
       },
     );

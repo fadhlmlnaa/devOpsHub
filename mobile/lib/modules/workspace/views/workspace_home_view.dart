@@ -429,7 +429,17 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
         return Padding(
           padding: const EdgeInsets.only(bottom: 10.0),
           child: AppCard(
-            onTap: () => Get.toNamed('/workspaces/$workspaceId/servers/${srv.id}'),
+            onTap: () {
+              _serverController.selectedServer.value = srv;
+              Get.toNamed(
+                '/workspaces/$workspaceId/servers/${srv.id}',
+                arguments: {
+                  'workspaceId': workspaceId,
+                  'serverId': srv.id,
+                  'server': srv,
+                },
+              );
+            },
             child: Row(
               children: [
                 Container(
