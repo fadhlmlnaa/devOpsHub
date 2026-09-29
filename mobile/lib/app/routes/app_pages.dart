@@ -16,6 +16,8 @@ import '../../modules/docker/views/docker_dashboard_view.dart';
 import '../../modules/docker/views/container_detail_view.dart';
 import '../../modules/deployment/views/deployment_dashboard_view.dart';
 import '../../modules/backup/views/backup_dashboard_view.dart';
+import '../../modules/alerts/views/alert_dashboard_view.dart';
+import '../../modules/alerts/views/notification_list_view.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -95,6 +97,22 @@ class AppPages {
     GetPage(
       name: AppRoutes.backups,
       page: () => const BackupDashboardView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.alerts,
+      page: () {
+        final wsId = Get.parameters['id'] ?? '';
+        return AlertDashboardView(workspaceId: wsId);
+      },
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.notifications,
+      page: () {
+        final wsId = Get.parameters['id'] ?? '';
+        return NotificationListView(workspaceId: wsId);
+      },
       transition: Transition.rightToLeft,
     ),
   ];

@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     MAX_BACKUP_LOG_LINES: int = 5000
     MAX_BACKUP_LOG_MESSAGE_LENGTH: int = 4000
 
+    # Alerts & Notifications (Step 13)
+    ALERT_EVALUATION_INTERVAL_SECONDS: int = 60
+    ALERT_DEFAULT_DURATION_SECONDS: int = 60
+    ALERT_ENABLE_BACKGROUND_SCHEDULER: bool = True
+    MAX_NOTIFICATIONS_LIMIT: int = 100
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

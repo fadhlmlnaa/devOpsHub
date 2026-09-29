@@ -10,6 +10,7 @@ import '../data/services/log_service.dart';
 import '../data/services/docker_service.dart';
 import '../data/services/deployment_service.dart';
 import '../data/services/backup_service.dart';
+import '../data/services/alert_service.dart';
 import '../modules/auth/controllers/auth_controller.dart';
 import '../modules/workspace/controllers/workspace_controller.dart';
 import '../modules/environment/controllers/environment_controller.dart';
@@ -18,6 +19,9 @@ import '../modules/service/controllers/service_controller.dart';
 import '../modules/log/controllers/log_controller.dart';
 import '../modules/docker/controllers/docker_controller.dart';
 import '../modules/docker/controllers/docker_compose_controller.dart';
+import '../modules/alerts/controllers/alert_controller.dart';
+import '../modules/alerts/controllers/alert_rule_controller.dart';
+import '../modules/alerts/controllers/notification_controller.dart';
 
 class InitialBinding extends Bindings {
   @override
@@ -57,13 +61,16 @@ class InitialBinding extends Bindings {
     final backupService = BackupService(apiClient: apiClient);
     Get.put<BackupService>(backupService, permanent: true);
 
+    final alertService = AlertService(apiClient: apiClient);
+    Get.put<AlertService>(alertService, permanent: true);
+
     // Global Auth Controller
     Get.put<AuthController>(
       AuthController(authService: authService),
       permanent: true,
     );
 
-    // Workspace, Environment, Server, Service, Log, & Docker Controllers
+    // Workspace, Environment, Server, Service, Log, Docker, Alert & Notification Controllers
     Get.lazyPut<WorkspaceController>(
       () => WorkspaceController(
         workspaceService: workspaceService,
@@ -110,6 +117,27 @@ class InitialBinding extends Bindings {
     Get.lazyPut<DockerComposeController>(
       () => DockerComposeController(
         dockerService: dockerService,
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<AlertController>(
+      () => AlertController(
+        alertService: alertService,
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<AlertRuleController>(
+      () => AlertRuleController(
+        alertService: alertService,
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<NotificationController>(
+      () => NotificationController(
+        alertService: alertService,
       ),
       fenix: true,
     );

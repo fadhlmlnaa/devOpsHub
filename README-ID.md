@@ -281,6 +281,65 @@ Buka Aplikasi (Splash)
       - **Backup Config Form**: Form pendaftaran target baru dengan pemilih tipe (`PostgreSQL`, `Filesystem`, `Docker Volume`), label dinamis, switch kompresi gzip, dan validasi input.
       - **Monospace Terminal Viewer**: Log viewer real-time dengan status badge, filter level (INFO, WARNING, ERROR), copy to clipboard, dan manual refresh.
 
+  - **Step 13 — Alerts & Notifications**:
+    - **Arsitektur**:
+      ```text
+      Monitoring / Telemetry
+                 │
+                 ▼
+      AlertEvaluationService
+                 │
+                 ▼
+             AlertRule
+                 │
+                 ▼
+            AlertState (FIRING / RESOLVED)
+                 │
+                 ▼
+        NotificationService
+                 ├── In-App Notification (Tabel notifications)
+                 └── Email (Provider interface extensible)
+      ```
+    - **Supported Metrics**:
+      - `CPU_USAGE`: Persentase pemakaian CPU server (0 - 100%).
+      - `MEMORY_USAGE`: Persentase pemakaian RAM server (0 - 100%).
+      - `DISK_USAGE`: Persentase pemakaian penyimpanan partisi disk utama (0 - 100%).
+      - `LOAD_AVERAGE`: Beban rata-rata CPU 1-menit (`load1`).
+      - `SERVER_STATUS`: Status server (`OFFLINE` = 0.0, `ONLINE` = 1.0).
+      - `SERVICE_STATUS`: Status layanan systemd target (`target_identifier`, e.g. nginx, docker, redis: `FAILED/INACTIVE` = 0.0, `RUNNING` = 1.0).
+      - `DEPLOYMENT_STATUS`: Status deployment terakhir pada server/workspace (`FAILED` = 0.0, `SUCCESS` = 1.0).
+      - `BACKUP_STATUS`: Status operasi backup terakhir pada server/workspace (`FAILED` = 0.0, `SUCCESS` = 1.0).
+    - **Supported Operators**:
+      - `GREATER_THAN` (`>`), `GREATER_THAN_OR_EQUAL` (`>=`), `LESS_THAN` (`<`), `LESS_THAN_OR_EQUAL` (`<=`), `EQUAL` (`==`), `NOT_EQUAL` (`!=`).
+    - **Duration Thresholding**:
+      - Untuk mencegah alert spam dari lonjakan singkat (transient spikes), kondisi harus bertahan selama `duration_seconds` (contoh: CPU > 90% selama 300 detik) sebelum memicu pengiriman notifikasi.
+    - **Alert Deduplication & Spam Protection**:
+      - Satu kondisi yang terus terpenuhi dalam siklus evaluasi berturut-turut tetap menjadi 1 record alert aktif berstatus `FIRING` (tidak membuat record alert baru setiap evaluasi).
+      - Notifikasi `FIRING` hanya dikirimkan 1 kali saat alert pertama kali memenuhi durasi.
+      - Saat metrik kembali normal, alert otomatis berstatus `RESOLVED` dan mengirimkan 1 notifikasi resolusi.
+      - Jika kondisi bermasalah terjadi kembali setelah resolusi, sistem dapat memicu alert baru (`RESOLVED -> FIRING`).
+    - **Manual Alert Resolution**:
+      - Endpoint `POST /api/v1/workspaces/{workspace_id}/alerts/{alert_id}/resolve` dengan `confirm: true` memungkinkan `ADMIN` atau `OWNER` menyelesaikan alert secara manual.
+      - Resolusi manual tidak menonaktifkan aturan monitoring (`AlertRule`), sehingga alert akan menyala kembali jika kondisi masih bermasalah pada evaluasi selanjutnya.
+    - **In-App Notifications & Preferences**:
+      - Setiap pengguna memiliki preferensi mandiri (`notification_preferences`) untuk mengatur `in_app_enabled`, `email_enabled`, dan `minimum_severity` (`INFO`, `WARNING`, `CRITICAL`).
+      - Pengguna hanya dapat membaca dan menandai dibaca notifikasi miliknya sendiri (User Isolation).
+    - **Background Scheduler & Configuration**:
+      - `ALERT_EVALUATION_INTERVAL_SECONDS=60`
+      - `ALERT_ENABLE_BACKGROUND_SCHEDULER=True`
+      - `MAX_NOTIFICATIONS_LIMIT=100`
+    - **RBAC Matrix**:
+      - `VIEWER` & `DEVELOPER`: Read-only (Melihat alert firing/resolved, timeline audit event, aturan rules, dan preferensi notifikasi).
+      - `ADMIN` & `OWNER`: Full CRUD Aturan Alert Rules dan Manual Alert Resolution.
+    - **Flutter Mobile Screens**:
+      - **Alert Dashboard**: Tab "Alert Aktif / Riwayat" dan Tab "Aturan Rules" dengan filter chips (Status, Severity), live badge unread, dan FAB Buat Aturan.
+      - **Alert Detail View**: Informasi metrik lengkap, waktu terpicu, nilai batas vs terdeteksi, timeline audit event, dan tombol konfirmasi resolusi manual.
+      - **Alert Rule Form**: Pembuat aturan fleksibel dengan pemilih metrik, operator, threshold, durasi detik, severity, dan target scope (server/environment).
+      - **Notification Inbox**: Inbox in-app notification dengan filter unread, tombol "Tandai Semua Dibaca", dan bottom sheet preferensi notifikasi.
+      - **AppBar Badges**: Indikator lonceng notifikasi dinamis 🔔 dengan unread counter badge.
+    - **Catatan & Batasan Sistem**:
+      - *Sistem alerting ini dirancang secara terpusat, ringan (lightweight), dan modular, dan secara sengaja bukan merupakan pengganti Prometheus / Alertmanager.*
+
 ---
 
 ## 4. Menjalankan & Menguji Aplikasi

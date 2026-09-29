@@ -316,14 +316,51 @@ flutter test
 
 ---
 
-### Skenario Uji 17: Auto-Refresh Token & Sesi Aman
+### Skenario Uji 17: Alerts & Notifications (Step 13)
+1. Buka halaman **Workspace Home** atau **Server Detail**.
+2. Periksa ikon lonceng notifikasi 🔔 di AppBar:
+   - Jika terdapat notifikasi yang belum dibaca, badge merah menampilkan jumlah unread count (misal: `3` atau `99+`).
+3. Klik ikon lonceng 🔔 untuk membuka **Inbox Notifikasi**:
+   - Menampilkan daftar notifikasi in-app lengkap dengan tingkat keparahan (*CRITICAL*, *WARNING*, *INFO*), judul, pesan, dan waktu relatif.
+   - Klik chip **"Hanya Belum Dibaca"** untuk memfilter notifikasi unread.
+   - Klik kartu notifikasi: status berubah menjadi terbaca (*read*) dan counter badge di AppBar berkurang secara real-time.
+   - Klik ikon **"Tandai Semua Dibaca"** di AppBar untuk menandai seluruh notifikasi sekaligus.
+   - Klik ikon gerigi (Preferensi) untuk membuka modal bottom sheet **Preferensi Notifikasi** (`In-App Notification`, `Email Notification`, dan `Minimum Severity`).
+4. Buka **Alerts Dashboard** (melalui ikon lonceng aktif di Workspace Home atau tombol *"Buka Dashboard Alerts Server"* di Server Detail):
+   - Terdapat 2 tab: **Alert** dan **Aturan Rules**.
+5. Di tab **Aturan Rules**:
+   - Klik tombol **"Tambah Aturan"** (Floating Action Button).
+   - Isi formulir aturan:
+     - Nama Aturan: `High CPU Prod Alert`
+     - Tipe Metrik: `CPU_USAGE` (atau `MEMORY_USAGE`, `DISK_USAGE`, `SERVER_STATUS`, `SERVICE_STATUS`, `DEPLOYMENT_STATUS`, `BACKUP_STATUS`)
+     - Operator: `GREATER_THAN` (`>`)
+     - Batas (Threshold): `90.0`
+     - Durasi Bertahan: `300` detik
+     - Severity: `CRITICAL`
+     - Toggle Aktifkan: `Aktif`
+   - Klik **"Buat Aturan Alert"**. Aturan baru langsung muncul di daftar rules.
+   - Uji toggle switch untuk mengaktifkan/menonaktifkan aturan secara instan.
+6. Di tab **Alert**:
+   - Terapkan filter chips: **Semua Status**, **🔥 Firing**, **✅ Resolved**, serta filter severity (**Critical**, **Warning**, **Info**).
+   - Klik tombol **Sync / Evaluasi Alert Sekarang** di pojok kanan atas AppBar untuk memicu siklus evaluasi manual ke backend.
+7. Buka **Detail Alert**:
+   - Menampilkan status alert (*FIRING* merah / *RESOLVED* hijau), tingkat keparahan, nama server, environment, nilai metrik terdeteksi vs nilai batas, dan waktu terpicu.
+   - Periksa **Audit Trail Riwayat Event**: Menampilkan urutan timeline event (*TRIGGERED*, *NOTIFICATION_SENT*, *RESOLVED*).
+   - Jika alert berstatus *FIRING*, role `ADMIN` atau `OWNER` dapat mengklik tombol **"Selesaikan Alert Secara Manual"**. Muncul dialog konfirmasi bahaya, dan setelah dikonfirmasi, alert berubah menjadi *RESOLVED* dan event audit manual tercatat.
+8. Role RBAC:
+   - Role `VIEWER` dan `DEVELOPER` hanya dapat melihat daftar alert, rules, dan preferensi notifikasi miliknya sendiri.
+   - Role `ADMIN` dan `OWNER` memiliki akses penuh membuat, mengedit, menghapus rules, dan menyelesaikan alert manual.
+
+---
+
+### Skenario Uji 18: Auto-Refresh Token & Sesi Aman
 1. Sesi pengguna (Access Token & Refresh Token) tersimpan di storage terenkripsi perangkat (`flutter_secure_storage`).
 2. Jika Access Token kadaluarsa (401), `ApiClient` secara transparan memicu endpoint `/auth/refresh` di background, memperbarui token di storage, dan mengulang request data tanpa mengganggu interaksi pengguna.
 3. Jika Refresh Token juga kadaluarsa atau di-revoke, sesi dibersihkan dan pengguna diarahkan kembali ke layar Login.
 
 ---
 
-### Skenario Uji 18: Logout
+### Skenario Uji 19: Logout
 1. Klik tombol **Logout** di AppBar.
 2. Dialog konfirmasi muncul.
 3. Klik **"Logout"**.
@@ -334,7 +371,7 @@ flutter test
 ## 🧪 Struktur Unit & Widget Test Otomatis (Mobile)
 
 File test terletak di folder `mobile/test/`:
-- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk seluruh model backend termasuk `BackupConfigModel`, `BackupModel`, `BackupLogEntryModel`, `BackupLogsModel`, dan `BackupVerifyResultModel` (Step 12).
+- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk seluruh model backend termasuk `AlertRuleModel`, `AlertModel`, `AlertEventModel`, `NotificationModel`, `NotificationPreferenceModel`, dan `UnreadNotificationCountModel` (Step 13).
 - `api_exception_test.dart`: Pengujian parsing error backend, handling status code HTTP (400, 401, 403, 404, 409, 422, 500) dan timeout connection.
 - `widgets_test.dart`: Pengujian rendering dan event listener pada Base Widgets (`AppButton`, `AppTextField`, `AppStatusBadge`, `AppCard`).
 - `widget_test.dart`: Pengujian inisialisasi aplikasi `DevOpsHubApp` dan halaman startup.

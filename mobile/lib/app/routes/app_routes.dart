@@ -14,6 +14,8 @@ abstract class AppRoutes {
   static const containerDetail = '/workspaces/:id/servers/:serverId/docker/containers/:containerId';
   static const deployments = '/workspaces/:id/servers/:serverId/deployments';
   static const backups = '/workspaces/:id/servers/:serverId/backups';
+  static const alerts = '/workspaces/:id/alerts';
+  static const notifications = '/workspaces/:id/notifications';
 }
 
 

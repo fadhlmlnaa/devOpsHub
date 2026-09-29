@@ -10,6 +10,7 @@ import '../../auth/controllers/auth_controller.dart';
 import '../../environment/controllers/environment_controller.dart';
 import '../../environment/widgets/create_environment_sheet.dart';
 import '../../server/controllers/server_controller.dart';
+import '../../alerts/controllers/notification_controller.dart';
 import '../controllers/workspace_controller.dart';
 
 class WorkspaceHomeView extends StatefulWidget {
@@ -55,9 +56,69 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
       appBar: AppAppBar(
         title: 'Workspace Home',
         actions: [
+          // Alerts Dashboard shortcut
+          IconButton(
+            tooltip: 'Peringatan & Alert',
+            icon: const Icon(Icons.notifications_active_outlined, color: AppColors.primary, size: 22),
+            onPressed: () {
+              final ws = _workspaceController.selectedWorkspace.value;
+              if (ws != null) {
+                Get.toNamed('/workspaces/${ws.id}/alerts', parameters: {'id': ws.id});
+              }
+            },
+          ),
+          // Notification Inbox with dynamic Badge
+          Builder(
+            builder: (context) {
+              final notifCtrl = Get.find<NotificationController>();
+              final ws = _workspaceController.selectedWorkspace.value;
+              if (ws != null) {
+                notifCtrl.initWorkspace(ws.id);
+              }
+              return Obx(() {
+                final unread = notifCtrl.unreadCount.value;
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    IconButton(
+                      tooltip: 'Inbox Notifikasi',
+                      icon: const Icon(Icons.notifications_outlined, color: AppColors.textPrimary, size: 22),
+                      onPressed: () {
+                        if (ws != null) {
+                          Get.toNamed('/workspaces/${ws.id}/notifications', parameters: {'id': ws.id});
+                        }
+                      },
+                    ),
+                    if (unread > 0)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: AppColors.error,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                          child: Text(
+                            unread > 99 ? '99+' : '$unread',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              });
+            },
+          ),
           IconButton(
             tooltip: 'Ganti Workspace',
-            icon: const Icon(Icons.swap_horiz_rounded, color: AppColors.primary),
+            icon: const Icon(Icons.swap_horiz_rounded, color: AppColors.textSecondary),
             onPressed: () => Get.back(),
           ),
           IconButton(

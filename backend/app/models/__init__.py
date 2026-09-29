@@ -9,6 +9,13 @@ from app.models.refresh_token import RefreshToken
 from app.models.docker_compose import DockerComposeProject
 from app.models.deployment import DeploymentConfig, Deployment, DeploymentLog
 from app.models.backup import BackupConfig, Backup, BackupLog
+from app.models.alert import (
+    AlertRule,
+    Alert,
+    AlertEvent,
+    NotificationPreference,
+    Notification,
+)
 
 __all__ = [
     "Base",
@@ -27,5 +34,10 @@ __all__ = [
     "BackupConfig",
     "Backup",
     "BackupLog",
+    "AlertRule",
+    "Alert",
+    "AlertEvent",
+    "NotificationPreference",
+    "Notification",
 ]
 

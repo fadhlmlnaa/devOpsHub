@@ -13,6 +13,7 @@ import 'package:devops_hub/data/models/log_model.dart';
 import 'package:devops_hub/data/models/docker_model.dart';
 import 'package:devops_hub/data/models/deployment_model.dart';
 import 'package:devops_hub/data/models/backup_model.dart';
+import 'package:devops_hub/data/models/alert_model.dart';
 import 'package:devops_hub/core/utils/formatters.dart';
 
 void main() {
@@ -760,6 +761,100 @@ void main() {
       final verify = BackupVerifyResultModel.fromJson(verifyJson);
       expect(verify.verified, true);
       expect(verify.checksum, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+    });
+  });
+
+  group('Alert & Notification Models JSON serialization', () {
+    test('AlertRuleModel parses accurately with condition formatting', () {
+      final json = {
+        'id': 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+        'workspace_id': 'c7b5a190-3204-4edb-b483-1e440b8438bf',
+        'name': 'High CPU Alert Rule',
+        'description': 'Trigger alert when CPU > 90%',
+        'metric_type': 'CPU_USAGE',
+        'operator': 'GREATER_THAN',
+        'threshold': 90.0,
+        'duration_seconds': 300,
+        'severity': 'CRITICAL',
+        'is_enabled': true,
+        'created_at': '2026-09-29T10:00:00Z',
+      };
+
+      final rule = AlertRuleModel.fromJson(json);
+      expect(rule.id, 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d');
+      expect(rule.name, 'High CPU Alert Rule');
+      expect(rule.metricTypeFormatted, 'CPU Usage');
+      expect(rule.operatorSymbol, '>');
+      expect(rule.conditionText, '> 90%');
+      expect(rule.durationFormatted, '5 mnt');
+      expect(rule.isEnabled, true);
+    });
+
+    test('AlertModel & AlertEventModel parse accurately', () {
+      final json = {
+        'id': 'e1f2a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b',
+        'workspace_id': 'c7b5a190-3204-4edb-b483-1e440b8438bf',
+        'alert_rule_id': 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+        'status': 'FIRING',
+        'severity': 'CRITICAL',
+        'title': 'High CPU Usage on prod-01',
+        'message': 'CPU usage reached 94.5%',
+        'current_value': 94.5,
+        'threshold_value': 90.0,
+        'triggered_at': '2026-09-29T10:00:00Z',
+        'events': [
+          {
+            'id': 'ev-1',
+            'alert_id': 'e1f2a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b',
+            'event_type': 'TRIGGERED',
+            'message': 'Alert rule condition met',
+            'created_at': '2026-09-29T10:00:00Z',
+          }
+        ]
+      };
+
+      final alert = AlertModel.fromJson(json);
+      expect(alert.id, 'e1f2a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b');
+      expect(alert.isFiring, true);
+      expect(alert.isCritical, true);
+      expect(alert.currentValue, 94.5);
+      expect(alert.events?.length, 1);
+      expect(alert.events?.first.eventType, 'TRIGGERED');
+    });
+
+    test('NotificationModel & Preferences parse accurately', () {
+      final notifJson = {
+        'id': 'notif-1',
+        'user_id': 'u1',
+        'workspace_id': 'w1',
+        'title': 'High CPU Alert',
+        'message': 'Server prod-01 CPU > 90%',
+        'severity': 'CRITICAL',
+        'is_read': false,
+        'created_at': '2026-09-29T10:00:00Z',
+      };
+
+      final notif = NotificationModel.fromJson(notifJson);
+      expect(notif.id, 'notif-1');
+      expect(notif.isRead, false);
+      expect(notif.isCritical, true);
+
+      final prefJson = {
+        'id': 'pref-1',
+        'user_id': 'u1',
+        'workspace_id': 'w1',
+        'in_app_enabled': true,
+        'email_enabled': true,
+        'minimum_severity': 'WARNING',
+      };
+
+      final pref = NotificationPreferenceModel.fromJson(prefJson);
+      expect(pref.inAppEnabled, true);
+      expect(pref.emailEnabled, true);
+      expect(pref.minimumSeverity, 'WARNING');
+
+      final count = UnreadNotificationCountModel.fromJson({'unread_count': 5});
+      expect(count.unreadCount, 5);
     });
   });
 }
