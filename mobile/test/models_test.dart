@@ -11,6 +11,7 @@ import 'package:devops_hub/data/models/monitoring_metrics_model.dart';
 import 'package:devops_hub/data/models/service_model.dart';
 import 'package:devops_hub/data/models/log_model.dart';
 import 'package:devops_hub/data/models/docker_model.dart';
+import 'package:devops_hub/data/models/deployment_model.dart';
 import 'package:devops_hub/core/utils/formatters.dart';
 
 void main() {
@@ -570,5 +571,94 @@ void main() {
       expect(actionRes.status, 'RUNNING');
     });
   });
+
+  group('Deployment Models JSON serialization', () {
+    test('DeploymentConfigModel parses accurately', () {
+      final json = {
+        'id': 'd1e2f3a4-b5c6-7d8e-9f0a-1b2c3d4e5f6a',
+        'workspace_id': 'c7b5a190-3204-4edb-b483-1e440b8438bf',
+        'environment_id': 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+        'server_id': '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c',
+        'name': 'Odoo Production Deploy',
+        'description': 'Main production deployment',
+        'application_name': 'odoo',
+        'working_directory': '/opt/odoo',
+        'deployment_type': 'SYSTEMD',
+        'branch': 'main',
+        'restart_service_name': 'odoo.service',
+        'is_active': true,
+        'environment_name': 'Production',
+        'environment_is_protected': true,
+        'server_name': 'prod-01',
+        'created_at': '2026-09-29T10:00:00Z',
+      };
+
+      final config = DeploymentConfigModel.fromJson(json);
+      expect(config.id, 'd1e2f3a4-b5c6-7d8e-9f0a-1b2c3d4e5f6a');
+      expect(config.name, 'Odoo Production Deploy');
+      expect(config.isSystemd, true);
+      expect(config.environmentIsProtected, true);
+      expect(config.restartServiceName, 'odoo.service');
+    });
+
+    test('DeploymentModel parses history and execution attributes', () {
+      final json = {
+        'id': 'e1f2a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b',
+        'workspace_id': 'c7b5a190-3204-4edb-b483-1e440b8438bf',
+        'environment_id': 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+        'server_id': '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c',
+        'deployment_config_id': 'd1e2f3a4-b5c6-7d8e-9f0a-1b2c3d4e5f6a',
+        'status': 'SUCCESS',
+        'triggered_by_user_id': '1880608b-2590-49e5-9b4a-886318e5ed91',
+        'triggered_by_name': 'Fadhil Maulana',
+        'commit_reference': 'a1b2c3d',
+        'message': 'Deployment completed successfully.',
+        'deployment_config_name': 'Odoo Production Deploy',
+        'environment_name': 'Production',
+        'environment_is_protected': true,
+        'server_name': 'prod-01',
+        'started_at': '2026-09-29T10:00:00Z',
+        'finished_at': '2026-09-29T10:01:30Z',
+        'created_at': '2026-09-29T10:00:00Z',
+      };
+
+      final dep = DeploymentModel.fromJson(json);
+      expect(dep.id, 'e1f2a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b');
+      expect(dep.status, 'SUCCESS');
+      expect(dep.isSuccess, true);
+      expect(dep.commitReference, 'a1b2c3d');
+      expect(dep.triggeredByName, 'Fadhil Maulana');
+    });
+
+    test('DeploymentLogsModel & LogEntry parses stream and levels', () {
+      final json = {
+        'deployment_id': 'e1f2a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b',
+        'status': 'RUNNING',
+        'lines_returned': 2,
+        'entries': [
+          {
+            'sequence': 1,
+            'timestamp': '2026-09-29T10:00:00Z',
+            'level': 'INFO',
+            'message': 'Starting deployment workflow',
+          },
+          {
+            'sequence': 2,
+            'timestamp': '2026-09-29T10:00:05Z',
+            'level': 'WARNING',
+            'message': 'Package version notice',
+          }
+        ],
+      };
+
+      final logs = DeploymentLogsModel.fromJson(json);
+      expect(logs.deploymentId, 'e1f2a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b');
+      expect(logs.linesReturned, 2);
+      expect(logs.entries.first.isInfo, true);
+      expect(logs.entries.last.isWarning, true);
+      expect(logs.entries.first.message, 'Starting deployment workflow');
+    });
+  });
 }
+
 

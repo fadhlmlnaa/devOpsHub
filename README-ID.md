@@ -193,6 +193,51 @@ Buka Aplikasi (Splash)
      - Compose Project Cards dengan status service-service di dalamnya dan action buttons (Up, Down, Restart).
      - Bottom sheet registrasi Compose Project baru.
 
+10. **Step 11 — Deployment Management**:
+    - **Tujuan**: Memungkinkan eksekusi deployment aplikasi secara aman, terprediksi, dan terkontrol dari perangkat mobile tanpa membuka celah eksekusi arbitrary shell command.
+    - **Deployment Architecture**:
+      ```text
+      DeploymentManagementService
+              ↓
+      DeploymentProvider (Abstract Interface)
+              ↓
+      SSHDeploymentProvider
+              ↓
+      ConnectionProvider (Existing SSH Pool)
+      ```
+    - **Deployment Types**:
+      - `SYSTEMD`: Workflow deployment untuk aplikasi berbasis Linux systemd service (e.g. Odoo, Laravel, Node.js, Python).
+      - `DOCKER_COMPOSE`: Workflow deployment untuk aplikasi berbasis multi-container Docker Compose.
+    - **Supported Predefined Operations**:
+      - `GIT_PULL`: Menjalankan git pull pada branch terdaftar dengan kredensial server.
+      - `INSTALL_DEPENDENCIES`: Menjalankan instalasi dependency terisolasi.
+      - `BUILD`: Menjalankan kompilasi / build aset terisolasi.
+      - `DOCKER_COMPOSE_PULL`: Menarik image compose terbaru.
+      - `DOCKER_COMPOSE_UP`: Menjalankan compose up -d.
+      - `RESTART_SERVICE`: Me-restart systemd unit service terdaftar.
+      - `HEALTH_CHECK`: Memvalidasi status service, status docker compose, atau endpoint HTTP health check.
+    - **Protected Environments**:
+      - Kolom `is_protected` (Boolean) pada `environments`.
+      - Deployment ke protected environment (misal Production) mewajibkan konfirmasi eksplisit (`confirm: true`), jika tidak request ditolak dengan `400 Bad Request`.
+    - **Concurrency Protection**:
+      - Lock level database/aplikasi: deployment berikutnya pada config yang sama akan ditolak dengan `409 Conflict` ("Deployment sedang berjalan.") selama status deployment sebelumnya masih `RUNNING`.
+    - **Deployment Logs & Bounded Storage**:
+      - Tabel `deployment_logs` mencatat log langkah demi langkah secara berurutan (`sequence`, `timestamp`, `level`, `message`).
+      - Batas maksimal: `MAX_DEPLOYMENT_LOG_LINES=5000` dan `MAX_DEPLOYMENT_LOG_MESSAGE_LENGTH=4000`.
+      - Masking data sensitif otomatis menggunakan `SecretRedactor` sebelum disimpan ke database.
+    - **Timeouts**:
+      - `DEPLOYMENT_CONNECTION_TIMEOUT=5s`
+      - `DEPLOYMENT_COMMAND_TIMEOUT=60s`
+      - `DEPLOYMENT_MAX_DURATION=1800s`
+    - **RBAC Matrix**:
+      - `VIEWER` & `DEVELOPER`: Read-only (Melihat konfigurasi, riwayat, dan detail log deployment).
+      - `ADMIN` & `OWNER`: Full CRUD Konfigurasi Deployment & Menjalankan Deploy.
+    - **Flutter Mobile Screens**:
+      - **Deployment Dashboard**: Segmented tabs ("Riwayat Deploy" vs "Konfigurasi App").
+      - **Confirmation Sheet**: Peringatan visual mencolok untuk Protected/Production Environment sebelum trigger deploy.
+      - **Config Form**: Form pendaftaran / edit konfigurasi Systemd / Compose.
+      - **Monospace Log Terminal**: Log viewer deployment real-time dengan status badge, filter level (INFO, WARNING, ERROR), copy to clipboard, dan manual refresh.
+
 ---
 
 ## 4. Menjalankan & Menguji Aplikasi
@@ -210,4 +255,5 @@ flutter pub get
 flutter analyze
 flutter test
 ```
+
 

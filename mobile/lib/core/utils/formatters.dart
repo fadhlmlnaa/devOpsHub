@@ -52,4 +52,27 @@ class AppFormatters {
       return '${diff.inDays}h lalu';
     }
   }
+
+  /// Formats DateTime into 'DD/MM/YYYY HH:mm'
+  static String formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return '-';
+    final d = dateTime.toLocal();
+    final day = d.day.toString().padLeft(2, '0');
+    final month = d.month.toString().padLeft(2, '0');
+    final year = d.year.toString();
+    final hour = d.hour.toString().padLeft(2, '0');
+    final min = d.minute.toString().padLeft(2, '0');
+    return '$day/$month/$year $hour:$min';
+  }
+
+  /// Formats DateTime into 'HH:mm:ss'
+  static String formatTime(DateTime? dateTime) {
+    if (dateTime == null) return '--:--';
+    final d = dateTime.toLocal();
+    final hour = d.hour.toString().padLeft(2, '0');
+    final min = d.minute.toString().padLeft(2, '0');
+    final sec = d.second.toString().padLeft(2, '0');
+    return '$hour:$min:$sec';
+  }
 }
+

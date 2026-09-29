@@ -215,7 +215,17 @@ class _ServerDetailViewState extends State<ServerDetailView> {
 
                   const SizedBox(height: 24),
 
-                  // 8. Test Connection Action
+                  // 8. Deployment Management Section (Step 11)
+                  const Text(
+                    'Deployment & Rilis Aplikasi',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDeploymentsCard(server),
+
+                  const SizedBox(height: 24),
+
+                  // 9. Test Connection Action
                   _buildTestConnectionSection(),
                   const SizedBox(height: 30),
                 ],
@@ -795,10 +805,68 @@ class _ServerDetailViewState extends State<ServerDetailView> {
     );
   }
 
+  Widget _buildDeploymentsCard(ServerModel server) {
+    return AppCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFBC8CFF).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.rocket_launch_rounded, color: Color(0xFFBC8CFF), size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Deployment Management',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Rilis otomatis (Git Pull, Systemd, Compose, Build) & riwayat log deployment',
+                      style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          AppButton(
+            text: 'Buka Dashboard Deployment',
+            icon: const Icon(Icons.open_in_new_rounded, size: 18, color: Color(0xFFBC8CFF)),
+            variant: AppButtonVariant.outline,
+            onPressed: () {
+              Get.toNamed(
+                '/workspaces/$_workspaceId/servers/$_serverId/deployments',
+                arguments: {
+                  'workspace_id': _workspaceId,
+                  'environment_id': server.environmentId,
+                  'server_id': _serverId,
+                  'server_name': server.name,
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Color _getBarColor(double pct) {
     if (pct >= 90) return AppColors.error;
     if (pct >= 75) return AppColors.warning;
     return AppColors.primary;
   }
 }
+
 

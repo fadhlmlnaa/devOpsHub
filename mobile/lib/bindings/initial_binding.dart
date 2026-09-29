@@ -8,6 +8,7 @@ import '../data/services/server_service.dart';
 import '../data/services/service_service.dart';
 import '../data/services/log_service.dart';
 import '../data/services/docker_service.dart';
+import '../data/services/deployment_service.dart';
 import '../modules/auth/controllers/auth_controller.dart';
 import '../modules/workspace/controllers/workspace_controller.dart';
 import '../modules/environment/controllers/environment_controller.dart';
@@ -48,6 +49,9 @@ class InitialBinding extends Bindings {
 
     final dockerService = DockerService(apiClient: apiClient);
     Get.put<DockerService>(dockerService, permanent: true);
+
+    final deploymentService = DeploymentService(apiClient: apiClient);
+    Get.put<DeploymentService>(deploymentService, permanent: true);
 
     // Global Auth Controller
     Get.put<AuthController>(

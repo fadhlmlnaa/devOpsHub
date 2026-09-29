@@ -238,14 +238,50 @@ flutter test
 
 ---
 
-### Skenario Uji 15: Auto-Refresh Token & Sesi Aman
+### Skenario Uji 15: Deployment Management (Step 11)
+1. Buka halaman **Server Detail** pada server terdaftar.
+2. Periksa kartu **Application Deployments** yang menampilkan jumlah konfigurasi terdaftar dan tombol **"Buka Deployment Dashboard"**.
+3. Klik **"Buka Deployment Dashboard"**:
+   - Terdapat 2 tab: **Riwayat Deploy** dan **Konfigurasi App**.
+4. Di tab **Konfigurasi App**:
+   - Klik **"+ Daftarkan Konfigurasi"** untuk membuat config deployment baru.
+   - Isi Formulir:
+     - Nama Konfigurasi: `Staging Odoo`
+     - Nama Aplikasi: `PTBI Odoo 17`
+     - Direktori Kerja: `/opt/odoo`
+     - Tipe Deployment: `Systemd Linux` atau `Docker Compose`
+     - Git Branch: `staging`
+     - Nama Unit Service: `odoo.service`
+   - Klik **"Simpan Konfigurasi"**.
+5. Uji Trigger Deployment:
+   - Klik tombol **"Deploy"** pada kartu konfigurasi.
+   - Modal sheet **Konfirmasi Deployment** muncul:
+     - Menampilkan ringkasan Aplikasi, Environment, Server, dan Tipe Deployment.
+     - Jika Environment bertipe **PROTECTED (Production)**, muncul banner peringatan merah tebal.
+   - Klik **"Eksekusi Deployment Sekarang"**.
+6. Pemantauan Log & Riwayat Deployment:
+   - Aplikasi otomatis berpindah ke tab **Riwayat Deploy**.
+   - Kartu deployment baru berstatus **RUNNING** dengan animasi indikator progress.
+   - Klik kartu untuk membuka **Terminal Log Deployment**.
+   - Log ditampilkan secara real-time dengan monospace font dan color-coded log level (INFO, WARNING, ERROR).
+   - Seluruh token/password otomatis di-masking (redacted).
+   - Setelah workflow selesai, status otomatis berubah menjadi **SUCCESS** atau **FAILED**.
+7. Uji Concurrency Lock (409 Conflict):
+   - Jika deployment sedang berstatus `RUNNING`, trigger deployment kedua pada konfigurasi yang sama akan ditolak dengan error 409: `"Deployment sedang berjalan."`.
+8. Role RBAC:
+   - Role `VIEWER` dan `DEVELOPER` hanya dapat melihat daftar konfigurasi, riwayat, dan detail log.
+   - Role `ADMIN` dan `OWNER` memiliki akses penuh CRUD konfigurasi dan trigger deployment.
+
+---
+
+### Skenario Uji 16: Auto-Refresh Token & Sesi Aman
 1. Sesi pengguna (Access Token & Refresh Token) tersimpan di storage terenkripsi perangkat (`flutter_secure_storage`).
 2. Jika Access Token kadaluarsa (401), `ApiClient` secara transparan memicu endpoint `/auth/refresh` di background, memperbarui token di storage, dan mengulang request data tanpa mengganggu interaksi pengguna.
 3. Jika Refresh Token juga kadaluarsa atau di-revoke, sesi dibersihkan dan pengguna diarahkan kembali ke layar Login.
 
 ---
 
-### Skenario Uji 16: Logout
+### Skenario Uji 17: Logout
 1. Klik tombol **Logout** di AppBar.
 2. Dialog konfirmasi muncul.
 3. Klik **"Logout"**.
@@ -256,7 +292,7 @@ flutter test
 ## 🧪 Struktur Unit & Widget Test Otomatis (Mobile)
 
 File test terletak di folder `mobile/test/`:
-- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk `UserModel`, `AuthTokenModel`, `WorkspaceModel`, `WorkspaceMemberModel`, `EnvironmentModel`, `ServerModel`, `ConnectionTestModel`, `ServerMetricsModel`, `ServiceModel`, `ServiceListModel`, `ServiceActionResultModel`, `LogEntryModel`, `LogResponseModel`, `DockerStatusModel`, `DockerContainerModel`, `DockerContainerDetailModel`, `DockerComposeProjectModel`, dan `DockerComposeStatusModel` (Step 10).
+- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk seluruh model backend termasuk `DeploymentConfigModel`, `DeploymentModel`, `DeploymentLogEntryModel`, dan `DeploymentLogsModel` (Step 11).
 - `api_exception_test.dart`: Pengujian parsing error backend, handling status code HTTP (400, 401, 403, 404, 409, 422, 500) dan timeout connection.
 - `widgets_test.dart`: Pengujian rendering dan event listener pada Base Widgets (`AppButton`, `AppTextField`, `AppStatusBadge`, `AppCard`).
 - `widget_test.dart`: Pengujian inisialisasi aplikasi `DevOpsHubApp` dan halaman startup.
@@ -265,5 +301,6 @@ Jalankan seluruh test:
 ```bash
 cd mobile && flutter test
 ```
+
 
 

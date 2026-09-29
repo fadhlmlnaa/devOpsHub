@@ -7,6 +7,7 @@ from app.models.server import Server
 from app.models.server_credential import ServerCredential
 from app.models.refresh_token import RefreshToken
 from app.models.docker_compose import DockerComposeProject
+from app.models.deployment import DeploymentConfig, Deployment, DeploymentLog
 
 __all__ = [
     "Base",
@@ -19,4 +20,8 @@ __all__ = [
     "ServerCredential",
     "RefreshToken",
     "DockerComposeProject",
+    "DeploymentConfig",
+    "Deployment",
+    "DeploymentLog",
 ]
+

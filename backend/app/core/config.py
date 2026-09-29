@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     MAX_DOCKER_LOG_RESPONSE_BYTES: int = 1048576
     DOCKER_COMPOSE_COMMAND_TIMEOUT: int = 60
 
+    # Deployment Settings (Step 11)
+    DEPLOYMENT_CONNECTION_TIMEOUT: int = 5
+    DEPLOYMENT_COMMAND_TIMEOUT: int = 60
+    DEPLOYMENT_MAX_DURATION: int = 1800
+    MAX_DEPLOYMENT_LOG_LINES: int = 5000
+    MAX_DEPLOYMENT_LOG_MESSAGE_LENGTH: int = 4000
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
