@@ -140,6 +140,26 @@ Buka Aplikasi (Splash)
      - Modal Dialog Konfirmasi dengan penjelasan dampak sebelum action dieksekusi.
      - State button otomatis dinonaktifkan (disabled) jika operasi tidak relevan dengan status saat ini atau user tidak memiliki role mutasi.
 
+8. **Step 09 — Logs Management (Systemd Journal)**:
+   - Pengambilan dan inspeksi log service Linux via `journalctl` secara aman dan terisolasi dari perangkat mobile.
+   - **Log Retrieval API**:
+     - `GET /api/v1/workspaces/{workspace_id}/servers/{server_id}/services/{service_name}/logs?lines=100&since=10m`
+   - **Parameter & Filtering**:
+     - `lines`: Batas jumlah baris (min: 10, max: 1000, default: 100).
+     - `since`: Filter rentang waktu terdefinisi (`5m`, `10m`, `30m`, `1h`, `6h`, `12h`, `24h`).
+     - `service_name`: Tervalidasi ketat `^[A-Za-z0-9_.@:-]+\.service$`.
+   - **Fitur & Keamanan**:
+     - **Secret Redaction Reusable (`SecretRedactor`)**: Masking otomatis terhadap data sensitif pada isi log (`password=********`, `token=********`, `api_key=********`, `Authorization: Bearer ********`, private key blocks).
+     - **Size Limitation & Truncation**: Maksimal response dibatasi 1MB (`MAX_LOG_RESPONSE_BYTES=1048576`). Jika melampaui, log dipotong secara aman dan ditandai `truncated: true`.
+     - **Fault Tolerance**: Parsing format log JSON/plain text yang fleksibel; baris log yang tidak sempurna tidak menggagalkan seluruh request.
+     - **No Database Log Persistence**: Log tetap berada pada target server (*single source of truth*), mencegah penumpukan data di PostgreSQL.
+   - **Flutter Mobile Log Viewer**:
+     - Tampilan log monospace dengan color-coded priority badge (ERROR, WARNING, INFO, DEBUG).
+     - Filter bar interaktif untuk memilih jumlah baris (`50`, `100`, `200`, `500`, `1000`) dan rentang waktu (`Semua`, `5m`, `10m`, `30m`, `1h`, `6h`, `24h`).
+     - Filter pencarian instan dalam log (`Search`).
+     - Salin baris log individual atau seluruh teks log ke clipboard.
+     - Pull-to-refresh dan tombol manual refresh.
+
 ---
 
 ## 4. Menjalankan & Menguji Aplikasi

@@ -275,6 +275,42 @@ class ServiceDetailView extends StatelessWidget {
                 ],
               ),
 
+              const SizedBox(height: 12),
+
+              // View Logs Button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.tealAccent),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () {
+                    Get.toNamed(
+                      '/workspaces/${controller.currentWorkspaceId.value}/servers/${controller.currentServerId.value}/services/${service.name}/logs',
+                      arguments: {
+                        'workspace_id': controller.currentWorkspaceId.value,
+                        'server_id': controller.currentServerId.value,
+                        'server_name': controller.currentServerName.value,
+                        'service_name': service.name,
+                      },
+                    );
+                  },
+                  icon: const Icon(Icons.receipt_long_rounded, color: Colors.tealAccent),
+                  label: const Text(
+                    'Lihat Log Service (Journald)',
+                    style: TextStyle(
+                      color: Colors.tealAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 24),
 
               // System Specifications Card

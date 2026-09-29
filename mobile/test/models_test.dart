@@ -9,6 +9,7 @@ import 'package:devops_hub/data/models/server_model.dart';
 import 'package:devops_hub/data/models/connection_test_model.dart';
 import 'package:devops_hub/data/models/monitoring_metrics_model.dart';
 import 'package:devops_hub/data/models/service_model.dart';
+import 'package:devops_hub/data/models/log_model.dart';
 import 'package:devops_hub/core/utils/formatters.dart';
 
 void main() {
@@ -361,6 +362,50 @@ void main() {
       expect(actionRes.service, 'nginx.service');
       expect(actionRes.action, 'restart');
       expect(actionRes.currentState?.activeState, 'active');
+    });
+  });
+
+  group('LogEntryModel & LogResponseModel JSON serialization', () {
+    test('LogEntryModel parses timestamps and priorities correctly', () {
+      final json = {
+        'timestamp': '2026-09-29T10:30:00Z',
+        'priority': 'ERROR',
+        'message': 'Failed to bind to socket: address already in use',
+      };
+
+      final entry = LogEntryModel.fromJson(json);
+      expect(entry.priority, 'ERROR');
+      expect(entry.message, 'Failed to bind to socket: address already in use');
+      expect(entry.timestamp, isNotNull);
+    });
+
+    test('LogResponseModel parses truncated state and entries array', () {
+      final json = {
+        'server_id': '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c',
+        'service': 'nginx.service',
+        'lines_requested': 100,
+        'lines_returned': 1,
+        'since': '10m',
+        'truncated': true,
+        'entries': [
+          {
+            'timestamp': '2026-09-29T10:30:00Z',
+            'priority': 'INFO',
+            'message': 'Started nginx service.',
+          }
+        ],
+        'checked_at': '2026-09-29T10:31:00Z',
+      };
+
+      final res = LogResponseModel.fromJson(json);
+      expect(res.serverId, '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c');
+      expect(res.service, 'nginx.service');
+      expect(res.linesRequested, 100);
+      expect(res.linesReturned, 1);
+      expect(res.since, '10m');
+      expect(res.truncated, true);
+      expect(res.entries.length, 1);
+      expect(res.entries.first.message, 'Started nginx service.');
     });
   });
 }

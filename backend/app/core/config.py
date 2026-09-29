@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     MONITORING_COMMAND_TIMEOUT: int = 5
     SERVICE_CONNECTION_TIMEOUT: int = 5
     SERVICE_COMMAND_TIMEOUT: int = 10
+    LOG_CONNECTION_TIMEOUT: int = 5
+    LOG_COMMAND_TIMEOUT: int = 10
+    MAX_LOG_RESPONSE_BYTES: int = 1048576
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -11,6 +11,7 @@ import '../../modules/workspace/views/workspace_list_view.dart';
 import '../../modules/server/views/add_server_view.dart';
 import '../../modules/server/views/server_detail_view.dart';
 import '../../modules/service/views/service_list_view.dart';
+import '../../modules/log/views/service_log_view.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -65,6 +66,11 @@ class AppPages {
     GetPage(
       name: AppRoutes.services,
       page: () => const ServiceListView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.logs,
+      page: () => const ServiceLogView(),
       transition: Transition.rightToLeft,
     ),
   ];
