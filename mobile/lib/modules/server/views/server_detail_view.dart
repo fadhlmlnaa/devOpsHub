@@ -87,6 +87,30 @@ class _ServerDetailViewState extends State<ServerDetailView> {
       appBar: AppAppBar(
         title: 'Detail Server & Monitoring',
         actions: [
+          // Terminal SSH shortcut
+          IconButton(
+            tooltip: 'Buka Terminal SSH',
+            icon: const Icon(Icons.terminal_rounded, color: AppColors.primary, size: 22),
+            onPressed: () {
+              final server = _controller.selectedServer.value;
+              if (server != null) {
+                Get.toNamed(
+                  '/workspaces/$_workspaceId/servers/$_serverId/terminal',
+                  arguments: {
+                    'workspaceId': _workspaceId,
+                    'serverId': _serverId,
+                    'serverName': server.name,
+                    'host': server.ipAddress ?? server.hostname ?? '',
+                    'username': server.username,
+                  },
+                  parameters: {
+                    'id': _workspaceId,
+                    'serverId': _serverId,
+                  },
+                );
+              }
+            },
+          ),
           Obx(() {
             final isFetching = _controller.isLoadingMetrics.value;
             return IconButton(
@@ -148,7 +172,17 @@ class _ServerDetailViewState extends State<ServerDetailView> {
 
                   const SizedBox(height: 20),
 
-                  // 2. Offline / Diagnostic Alert Banner
+                  // 2. Interactive Terminal (PTY) Section
+                  const Text(
+                    'Interactive Console & Terminal',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTerminalCard(server),
+
+                  const SizedBox(height: 24),
+
+                  // 3. Offline / Diagnostic Alert Banner
                   if (metrics != null && metrics.status == 'OFFLINE')
                     _buildOfflineAlert(metrics.error ?? 'Server tidak dapat dihubungi.')
                   else if (metricsError != null && metrics == null)
@@ -1467,6 +1501,67 @@ class _ServerDetailViewState extends State<ServerDetailView> {
         Get.back();
         await _controller.revokeAgent(_workspaceId, server.id);
       },
+    );
+  }
+
+  Widget _buildTerminalCard(ServerModel server) {
+    return AppCard(
+      gradient: AppColors.surfaceGradient,
+      borderColor: AppColors.primary.withValues(alpha: 0.3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.terminal_rounded, color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Interactive Terminal (PTY / SSH)',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
+                    ),
+                    Text(
+                      'Akses konsol live terminal & jalankan perintah Linux langsung di HP',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          AppButton(
+            text: 'Buka Terminal Konsol',
+            icon: const Icon(Icons.code_rounded, size: 18),
+            onPressed: () {
+              Get.toNamed(
+                '/workspaces/$_workspaceId/servers/$_serverId/terminal',
+                arguments: {
+                  'workspaceId': _workspaceId,
+                  'serverId': _serverId,
+                  'serverName': server.name,
+                  'host': server.ipAddress ?? server.hostname ?? '',
+                  'username': server.username,
+                },
+                parameters: {
+                  'id': _workspaceId,
+                  'serverId': _serverId,
+                },
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 

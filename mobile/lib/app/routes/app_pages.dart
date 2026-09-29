@@ -21,6 +21,7 @@ import '../../modules/alerts/views/notification_list_view.dart';
 import '../../data/services/audit_service.dart';
 import '../../modules/audit/controllers/audit_controller.dart';
 import '../../modules/audit/views/audit_log_list_view.dart';
+import '../../modules/terminal/views/server_terminal_view.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -70,6 +71,11 @@ class AppPages {
     GetPage(
       name: AppRoutes.serverDetail,
       page: () => const ServerDetailView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.serverTerminal,
+      page: () => const ServerTerminalView(),
       transition: Transition.rightToLeft,
     ),
     GetPage(
@@ -134,5 +140,6 @@ class AppPages {
     ),
   ];
 }
+
 
 

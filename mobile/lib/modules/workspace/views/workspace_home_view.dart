@@ -658,6 +658,26 @@ class _WorkspaceHomeViewState extends State<WorkspaceHomeView> {
                     ],
                   ),
                 ),
+                IconButton(
+                  tooltip: 'Buka Terminal SSH',
+                  icon: const Icon(Icons.terminal_rounded, color: AppColors.primary, size: 20),
+                  onPressed: () {
+                    Get.toNamed(
+                      '/workspaces/$workspaceId/servers/${srv.id}/terminal',
+                      arguments: {
+                        'workspaceId': workspaceId,
+                        'serverId': srv.id,
+                        'serverName': srv.name,
+                        'host': srv.ipAddress ?? srv.hostname ?? '',
+                        'username': srv.username,
+                      },
+                      parameters: {
+                        'id': workspaceId,
+                        'serverId': srv.id,
+                      },
+                    );
+                  },
+                ),
                 const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
               ],
             ),
