@@ -274,14 +274,56 @@ flutter test
 
 ---
 
-### Skenario Uji 16: Auto-Refresh Token & Sesi Aman
+### Skenario Uji 16: Backup Management & Verifikasi Integritas Checksum (Step 12)
+1. Buka halaman **Detail Server** dari Workspace Home.
+2. Scroll ke bagian bawah dan klik kartu **"Buka Dashboard Backup"** pada seksi *Backup Management & Cadangan Data*.
+3. Tampilan **Backup Dashboard** terbuka dengan 2 tab:
+   - **Riwayat Backup**
+   - **Konfigurasi Target**
+4. Uji Registrasi Target Backup Baru:
+   - Beralih ke tab **Konfigurasi Target**, klik tombol **"Tambah Konfigurasi"** (atau Floating Action Button).
+   - Masukkan informasi konfigurasi:
+     - Tipe Target: `PostgreSQL`, `Filesystem`, atau `Docker Volume`
+     - Nama Konfigurasi: `Production DB Backup`
+     - Sumber Target: `my_production_db` (untuk DB) / `/opt/myapp/uploads` (untuk Filesystem) / `myapp_data` (untuk Docker Volume)
+     - Direktori Tujuan di Server: `/var/backups/postgresql`
+     - Retensi: `14` Hari
+     - Toggle Kompresi: `Aktif`
+   - Klik **"Daftarkan Konfigurasi"**.
+5. Uji Trigger Backup:
+   - Klik tombol **"Jalankan Backup"** pada kartu target backup.
+   - Modal sheet **Konfirmasi Backup** muncul:
+     - Menampilkan ringkasan Tipe, Sumber, Direktori Tujuan, dan Retensi.
+     - Jika Environment bertipe **PROTECTED (Production)**, muncul banner peringatan merah tebal.
+   - Klik **"Eksekusi Backup Sekarang"**.
+6. Pemantauan Riwayat & Log Backup:
+   - Aplikasi otomatis berpindah ke tab **Riwayat Backup**.
+   - Kartu backup baru berstatus **RUNNING** dengan indikator progress.
+   - Klik kartu untuk membuka **Detail Backup**.
+   - Klik **"Lihat Log Backup"** untuk membuka **Terminal Log Backup**.
+   - Log ditampilkan secara real-time dengan monospace font dan color-coded log level (INFO, WARNING, ERROR).
+   - Seluruh token/password otomatis di-masking (redacted) menggunakan `SecretRedactor`.
+   - Setelah operasi selesai, status berubah menjadi **SUCCESS** atau **FAILED**, dengan metadata nama file, ukuran berkas, dan cuplikan hash SHA-256.
+7. Uji Verifikasi Berkas Backup:
+   - Pada halaman **Detail Backup**, klik tombol **"Verifikasi Berkas Backup"**.
+   - Backend memvalidasi keberadaan fisik berkas di server, mengkalkulasi ulang hash SHA-256 langsung di server, dan membandingkannya dengan hash yang tersimpan di database.
+   - Kotak status verifikasi hijau muncul jika checksum cocok ("Verifikasi berhasil. Checksum SHA-256 cocok.").
+8. Uji Concurrency Lock (409 Conflict):
+   - Jika backup sedang berstatus `RUNNING`, trigger backup kedua pada konfigurasi yang sama akan ditolak dengan error 409: `"Backup sedang berjalan."`.
+9. Role RBAC:
+   - Role `VIEWER` dan `DEVELOPER` hanya dapat melihat daftar konfigurasi, riwayat, dan detail log.
+   - Role `ADMIN` dan `OWNER` memiliki akses penuh CRUD konfigurasi, trigger backup, dan verifikasi checksum.
+
+---
+
+### Skenario Uji 17: Auto-Refresh Token & Sesi Aman
 1. Sesi pengguna (Access Token & Refresh Token) tersimpan di storage terenkripsi perangkat (`flutter_secure_storage`).
 2. Jika Access Token kadaluarsa (401), `ApiClient` secara transparan memicu endpoint `/auth/refresh` di background, memperbarui token di storage, dan mengulang request data tanpa mengganggu interaksi pengguna.
 3. Jika Refresh Token juga kadaluarsa atau di-revoke, sesi dibersihkan dan pengguna diarahkan kembali ke layar Login.
 
 ---
 
-### Skenario Uji 17: Logout
+### Skenario Uji 18: Logout
 1. Klik tombol **Logout** di AppBar.
 2. Dialog konfirmasi muncul.
 3. Klik **"Logout"**.
@@ -292,7 +334,7 @@ flutter test
 ## 🧪 Struktur Unit & Widget Test Otomatis (Mobile)
 
 File test terletak di folder `mobile/test/`:
-- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk seluruh model backend termasuk `DeploymentConfigModel`, `DeploymentModel`, `DeploymentLogEntryModel`, dan `DeploymentLogsModel` (Step 11).
+- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk seluruh model backend termasuk `BackupConfigModel`, `BackupModel`, `BackupLogEntryModel`, `BackupLogsModel`, dan `BackupVerifyResultModel` (Step 12).
 - `api_exception_test.dart`: Pengujian parsing error backend, handling status code HTTP (400, 401, 403, 404, 409, 422, 500) dan timeout connection.
 - `widgets_test.dart`: Pengujian rendering dan event listener pada Base Widgets (`AppButton`, `AppTextField`, `AppStatusBadge`, `AppCard`).
 - `widget_test.dart`: Pengujian inisialisasi aplikasi `DevOpsHubApp` dan halaman startup.

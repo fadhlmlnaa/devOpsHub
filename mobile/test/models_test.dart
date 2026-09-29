@@ -12,6 +12,7 @@ import 'package:devops_hub/data/models/service_model.dart';
 import 'package:devops_hub/data/models/log_model.dart';
 import 'package:devops_hub/data/models/docker_model.dart';
 import 'package:devops_hub/data/models/deployment_model.dart';
+import 'package:devops_hub/data/models/backup_model.dart';
 import 'package:devops_hub/core/utils/formatters.dart';
 
 void main() {
@@ -657,6 +658,108 @@ void main() {
       expect(logs.entries.first.isInfo, true);
       expect(logs.entries.last.isWarning, true);
       expect(logs.entries.first.message, 'Starting deployment workflow');
+    });
+  });
+
+  group('Backup Models JSON serialization', () {
+    test('BackupConfigModel parses correctly', () {
+      final json = {
+        'id': 'f1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c',
+        'workspace_id': 'c7b5a190-3204-4edb-b483-1e440b8438bf',
+        'environment_id': 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+        'server_id': '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c',
+        'name': 'Production DB Backup',
+        'description': 'Daily pg_dump backup',
+        'backup_type': 'POSTGRESQL',
+        'source': 'production_db',
+        'destination': '/var/backups/postgresql',
+        'retention_days': 14,
+        'is_compressed': true,
+        'is_active': true,
+        'environment_name': 'Production',
+        'environment_is_protected': true,
+        'server_name': 'prod-01',
+        'created_at': '2026-09-29T10:00:00Z',
+      };
+
+      final config = BackupConfigModel.fromJson(json);
+      expect(config.id, 'f1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c');
+      expect(config.name, 'Production DB Backup');
+      expect(config.backupType, 'POSTGRESQL');
+      expect(config.isPostgres, true);
+      expect(config.isCompressed, true);
+      expect(config.retentionDays, 14);
+      expect(config.environmentIsProtected, true);
+    });
+
+    test('BackupModel parses metadata, size, duration, and checksum', () {
+      final json = {
+        'id': 'b1c2d3e4-f5a6-7b8c-9d0e-1f2a3b4c5d6e',
+        'workspace_id': 'c7b5a190-3204-4edb-b483-1e440b8438bf',
+        'environment_id': 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d',
+        'server_id': '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c',
+        'backup_config_id': 'f1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c',
+        'backup_type': 'POSTGRESQL',
+        'status': 'SUCCESS',
+        'file_name': 'postgresql_production_db_2026-09-29_10-00-00.sql.gz',
+        'file_path': '/var/backups/postgresql/postgresql_production_db_2026-09-29_10-00-00.sql.gz',
+        'file_size_bytes': 10485760,
+        'checksum': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        'started_at': '2026-09-29T10:00:00Z',
+        'finished_at': '2026-09-29T10:01:30Z',
+        'created_at': '2026-09-29T10:00:00Z',
+        'backup_config_name': 'Production DB Backup',
+        'environment_name': 'Production',
+        'server_name': 'prod-01',
+      };
+
+      final backup = BackupModel.fromJson(json);
+      expect(backup.id, 'b1c2d3e4-f5a6-7b8c-9d0e-1f2a3b4c5d6e');
+      expect(backup.status, 'SUCCESS');
+      expect(backup.isSuccess, true);
+      expect(backup.formattedFileSize, '10.0 MB');
+      expect(backup.checksumSnippet, 'e3b0c442...b855');
+      expect(backup.durationFormatted, '1m 30s');
+    });
+
+    test('BackupLogsModel & VerifyResultModel parse properly', () {
+      final logsJson = {
+        'backup_id': 'b1c2d3e4-f5a6-7b8c-9d0e-1f2a3b4c5d6e',
+        'status': 'RUNNING',
+        'lines_returned': 2,
+        'entries': [
+          {
+            'sequence': 1,
+            'timestamp': '2026-09-29T10:00:00Z',
+            'level': 'INFO',
+            'message': 'Starting PostgreSQL backup',
+          },
+          {
+            'sequence': 2,
+            'timestamp': '2026-09-29T10:00:05Z',
+            'level': 'ERROR',
+            'message': 'Dump error notice',
+          }
+        ],
+      };
+
+      final logs = BackupLogsModel.fromJson(logsJson);
+      expect(logs.backupId, 'b1c2d3e4-f5a6-7b8c-9d0e-1f2a3b4c5d6e');
+      expect(logs.entries.length, 2);
+      expect(logs.entries.first.isInfo, true);
+      expect(logs.entries.last.isError, true);
+
+      final verifyJson = {
+        'backup_id': 'b1c2d3e4-f5a6-7b8c-9d0e-1f2a3b4c5d6e',
+        'verified': true,
+        'checksum': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        'verified_at': '2026-09-29T10:05:00Z',
+        'message': 'Verifikasi berhasil. Checksum SHA-256 cocok.',
+      };
+
+      final verify = BackupVerifyResultModel.fromJson(verifyJson);
+      expect(verify.verified, true);
+      expect(verify.checksum, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
     });
   });
 }

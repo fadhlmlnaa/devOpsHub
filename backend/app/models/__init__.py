@@ -8,6 +8,7 @@ from app.models.server_credential import ServerCredential
 from app.models.refresh_token import RefreshToken
 from app.models.docker_compose import DockerComposeProject
 from app.models.deployment import DeploymentConfig, Deployment, DeploymentLog
+from app.models.backup import BackupConfig, Backup, BackupLog
 
 __all__ = [
     "Base",
@@ -23,5 +24,8 @@ __all__ = [
     "DeploymentConfig",
     "Deployment",
     "DeploymentLog",
+    "BackupConfig",
+    "Backup",
+    "BackupLog",
 ]
 

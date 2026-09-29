@@ -232,11 +232,54 @@ Buka Aplikasi (Splash)
     - **RBAC Matrix**:
       - `VIEWER` & `DEVELOPER`: Read-only (Melihat konfigurasi, riwayat, dan detail log deployment).
       - `ADMIN` & `OWNER`: Full CRUD Konfigurasi Deployment & Menjalankan Deploy.
+11. **Step 12 — Backup Management**:
+    - **Tujuan**: Memungkinkan konfigurasi, eksekusi, inspeksi riwayat, monitoring log, dan verifikasi integritas backup server secara aman dan terkontrol langsung dari aplikasi mobile.
+    - **Pernyataan Keamanan Krusial**:
+      > **Platform ini TIDAK mengekspos arbitrary shell commands atau arbitrary file paths.** Semua operasi backup dibatasi pada whitelist operasi terdefinisi dan path/sumber yang terverifikasi.
+    - **Backup Architecture**:
+      ```text
+      BackupManagementService
+              ↓
+      BackupProvider (Abstract Interface)
+              ↓
+      SSHBackupProvider (SSH Implementation)
+              ↓
+      ConnectionProvider (Existing SSH Pool)
+      ```
+    - **Supported Backup Types**:
+      - `POSTGRESQL`: Backup database PostgreSQL terkontrol (`pg_dump` dengan kompresi gzip dan opsi autentikasi aman).
+      - `FILESYSTEM`: Backup direktori sistem berkas aplikasi terkontrol (`tar -czf` dengan validasi path absolut dan pencegahan path traversal).
+      - `DOCKER_VOLUME`: Backup volume Docker terkontrol (`docker run --rm -v volume:/data ... tar -czf`).
+    - **Supported Predefined Operations**:
+      - `POSTGRESQL_DUMP`: Operasi dump database PostgreSQL ke destinasi backup terdaftar.
+      - `FILESYSTEM_ARCHIVE`: Operasi kompresi arsip folder direktori ke destinasi backup.
+      - `DOCKER_VOLUME_BACKUP`: Operasi arsip volume container ke destinasi backup.
+      - `VERIFY_BACKUP`: Operasi kalkulasi checksum SHA-256 dan verifikasi keberadaan berkas backup pada server.
+    - **Backup Verification & Checksum Integrity**:
+      - Setiap backup yang berhasil menghasilkan hash **SHA-256** dan mencatat ukuran berkas (`file_size_bytes`) serta metadata file.
+      - Endpoint `POST /api/v1/workspaces/{workspace_id}/backups/{backup_id}/verify` memvalidasi keberadaan fisik berkas di server, mengkalkulasi ulang hash SHA-256 langsung di server, dan membandingkannya dengan hash yang tersimpan di database.
+    - **Protected Environments**:
+      - Pada environment dengan `is_protected = true`, backend mewajibkan konfirmasi eksplisit (`confirm: true`), jika tidak request ditolak dengan `400 Bad Request`.
+    - **Concurrency Protection**:
+      - Mencegah eksekusi ganda pada konfigurasi backup yang sama. Jika backup sedang berstatus `RUNNING`, request baru ditolak dengan `409 Conflict` ("Backup sedang berjalan.").
+    - **Retention Metadata**:
+      - Setiap konfigurasi mencatat `retention_days` (default: 7 hari). Metadata retensi disimpan dan siap untuk mekanisme pembersihan terisolasi di masa depan.
+    - **Secret Redaction & Bounded Logging**:
+      - Log backup disimpan pada tabel `backup_logs` dengan batasan `MAX_BACKUP_LOG_LINES=5000` dan `MAX_BACKUP_LOG_MESSAGE_LENGTH=4000`.
+      - Seluruh kredensial (database password, SSH password, private key, bearer tokens) disaring secara otomatis menggunakan `SecretRedactor` sebelum disimpan ke database atau dikirim ke API response.
+    - **Timeouts**:
+      - `BACKUP_CONNECTION_TIMEOUT=5s`
+      - `BACKUP_COMMAND_TIMEOUT=300s`
+      - `BACKUP_MAX_DURATION=3600s`
+    - **RBAC Matrix**:
+      - `VIEWER` & `DEVELOPER`: Read-only (Melihat daftar konfigurasi, detail riwayat, status, dan log backup).
+      - `ADMIN` & `OWNER`: Full CRUD Konfigurasi Target, Menjalankan Backup (`run`), dan Menjalankan Verifikasi (`verify`).
     - **Flutter Mobile Screens**:
-      - **Deployment Dashboard**: Segmented tabs ("Riwayat Deploy" vs "Konfigurasi App").
-      - **Confirmation Sheet**: Peringatan visual mencolok untuk Protected/Production Environment sebelum trigger deploy.
-      - **Config Form**: Form pendaftaran / edit konfigurasi Systemd / Compose.
-      - **Monospace Log Terminal**: Log viewer deployment real-time dengan status badge, filter level (INFO, WARNING, ERROR), copy to clipboard, dan manual refresh.
+      - **Backup Dashboard**: Segmented tabs ("Riwayat Backup" vs "Konfigurasi Target") dengan pencarian dan filter status/tipe.
+      - **Confirmation Sheet**: Modal dialog dengan ringkasan target, estimasi operasi, dan banner peringatan protected environment.
+      - **Backup Detail View**: Menampilkan status dinamis, nama file, ukuran terformat, waktu mulai/selesai, hash SHA-256 lengkap, tombol Verifikasi Berkas, dan tombol Lihat Log.
+      - **Backup Config Form**: Form pendaftaran target baru dengan pemilih tipe (`PostgreSQL`, `Filesystem`, `Docker Volume`), label dinamis, switch kompresi gzip, dan validasi input.
+      - **Monospace Terminal Viewer**: Log viewer real-time dengan status badge, filter level (INFO, WARNING, ERROR), copy to clipboard, dan manual refresh.
 
 ---
 
@@ -255,5 +298,6 @@ flutter pub get
 flutter analyze
 flutter test
 ```
+
 
 

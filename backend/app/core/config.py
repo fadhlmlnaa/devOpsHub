@@ -44,6 +44,13 @@ class Settings(BaseSettings):
     MAX_DEPLOYMENT_LOG_LINES: int = 5000
     MAX_DEPLOYMENT_LOG_MESSAGE_LENGTH: int = 4000
 
+    # Backup Settings (Step 12)
+    BACKUP_CONNECTION_TIMEOUT: int = 5
+    BACKUP_COMMAND_TIMEOUT: int = 300
+    BACKUP_MAX_DURATION: int = 3600
+    MAX_BACKUP_LOG_LINES: int = 5000
+    MAX_BACKUP_LOG_MESSAGE_LENGTH: int = 4000
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

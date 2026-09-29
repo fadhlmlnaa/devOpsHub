@@ -225,7 +225,17 @@ class _ServerDetailViewState extends State<ServerDetailView> {
 
                   const SizedBox(height: 24),
 
-                  // 9. Test Connection Action
+                  // 9. Backup Management Section (Step 12)
+                  const Text(
+                    'Backup Management & Cadangan Data',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildBackupsCard(server),
+
+                  const SizedBox(height: 24),
+
+                  // 10. Test Connection Action
                   _buildTestConnectionSection(),
                   const SizedBox(height: 30),
                 ],
@@ -848,6 +858,63 @@ class _ServerDetailViewState extends State<ServerDetailView> {
             onPressed: () {
               Get.toNamed(
                 '/workspaces/$_workspaceId/servers/$_serverId/deployments',
+                arguments: {
+                  'workspace_id': _workspaceId,
+                  'environment_id': server.environmentId,
+                  'server_id': _serverId,
+                  'server_name': server.name,
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBackupsCard(ServerModel server) {
+    return AppCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF336791).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.cloud_download_rounded, color: Color(0xFF58A6FF), size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Backup & Restore Metadata',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Cadangan PostgreSQL, direktori sistem berkas, Docker volume, & verifikasi integritas SHA-256',
+                      style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          AppButton(
+            text: 'Buka Dashboard Backup',
+            icon: const Icon(Icons.open_in_new_rounded, size: 18, color: Color(0xFF58A6FF)),
+            variant: AppButtonVariant.outline,
+            onPressed: () {
+              Get.toNamed(
+                '/workspaces/$_workspaceId/servers/$_serverId/backups',
                 arguments: {
                   'workspace_id': _workspaceId,
                   'environment_id': server.environmentId,
