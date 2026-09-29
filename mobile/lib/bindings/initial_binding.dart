@@ -3,8 +3,12 @@ import '../core/network/api_client.dart';
 import '../core/storage/secure_storage_service.dart';
 import '../data/services/auth_service.dart';
 import '../data/services/workspace_service.dart';
+import '../data/services/environment_service.dart';
+import '../data/services/server_service.dart';
 import '../modules/auth/controllers/auth_controller.dart';
 import '../modules/workspace/controllers/workspace_controller.dart';
+import '../modules/environment/controllers/environment_controller.dart';
+import '../modules/server/controllers/server_controller.dart';
 
 class InitialBinding extends Bindings {
   @override
@@ -23,17 +27,37 @@ class InitialBinding extends Bindings {
     final workspaceService = WorkspaceService(apiClient: apiClient);
     Get.put<WorkspaceService>(workspaceService, permanent: true);
 
+    final environmentService = EnvironmentService(apiClient: apiClient);
+    Get.put<EnvironmentService>(environmentService, permanent: true);
+
+    final serverService = ServerService(apiClient: apiClient);
+    Get.put<ServerService>(serverService, permanent: true);
+
     // Global Auth Controller
     Get.put<AuthController>(
       AuthController(authService: authService),
       permanent: true,
     );
 
-    // Workspace Controller
+    // Workspace, Environment & Server Controllers
     Get.lazyPut<WorkspaceController>(
       () => WorkspaceController(
         workspaceService: workspaceService,
         secureStorage: secureStorage,
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<EnvironmentController>(
+      () => EnvironmentController(
+        environmentService: environmentService,
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<ServerController>(
+      () => ServerController(
+        serverService: serverService,
       ),
       fenix: true,
     );

@@ -12,11 +12,17 @@ from app.schemas.workspace_member import (
     WorkspaceMemberResponse,
 )
 from app.schemas.environment import (
-    EnvironmentBase,
     EnvironmentCreate,
-    EnvironmentRead,
+    EnvironmentUpdate,
+    EnvironmentResponse,
 )
-from app.schemas.server import ServerBase, ServerCreate, ServerRead
+from app.schemas.server import (
+    ServerCreate,
+    ServerUpdate,
+    ServerResponse,
+    ServerCredentialInput,
+    ConnectionTestResponse,
+)
 from app.schemas.auth import (
     RegisterRequest,
     LoginRequest,

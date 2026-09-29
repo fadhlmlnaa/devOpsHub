@@ -87,17 +87,34 @@ Buka Aplikasi (Splash)
   Pilih / Buat Workspace
          ↓
   Workspace Home (/workspaces/:id)
-  (Placeholder Environment & Server untuk Step berikutnya)
+  (Environment & Server Management aktif di Step 06)
 ```
 
 ---
 
-## 3. Fitur Keamanan & Best Practices Step 05
+## 3. Fitur Keamanan & Arsitektur Step 06 (Server Management & SSH Connection)
 
-1. **Secure Storage**: Access token dan refresh token disimpan di KeyStore (Android) dan Keychain (iOS) melalui `flutter_secure_storage`. Password tidak pernah disimpan di device.
-2. **Single-Flight Refresh Token Lock**: Jika terjadi beberapa request bersamaan saat access token kadaluarsa (401), hanya 1 request refresh yang dipicu ke backend. Request lainnya menunggu completer dan otomatis mengulang request dengan token baru.
-3. **No Sensitive Logging**: Token, password, dan exception traceback tidak dicetak di console log.
-4. **Desain Visual & Tipografi**: Menggunakan font **Plus Jakarta Sans** (`google_fonts`) dan tema gelap bernuansa **Deep Dark Teal** (`#071E1B`, `#0B2925`) dengan aksen **Electric Cyan** (`#00D2FF`) sesuai logo DevOpsHub.
+1. **Workspace Scoped Environment & Server CRUD**:
+   - Environment dan Server diisolasi secara ketat per workspace.
+   - Cross-workspace validation: Server tidak dapat dihubungkan ke environment yang berada di workspace berbeda.
+   - Deletion Protection: Environment tidak dapat dihapus jika masih memiliki server terdaftar.
+2. **Enkripsi Kredensial Server (Zero-Plaintext at Rest)**:
+   - Abstraksi tabel `server_credentials` yang terpisah dari tabel `servers`.
+   - Enkripsi simetrik berbasis Fernet (`cryptography`) menggunakan `CREDENTIAL_ENCRYPTION_KEY`.
+   - Mendukung autentikasi `PASSWORD` dan `PRIVATE_KEY` (dengan passphrase opsional).
+   - Password dan private key **tidak pernah** dikembalikan melalui API response dan tidak pernah dicatat ke logging.
+3. **SSH Provider Abstraction**:
+   - Desain arsitektur `ConnectionProvider` (abstract base class) -> `SSHProvider` (`asyncssh`) -> Server target.
+   - Dirancang fleksibel untuk masa depan agar dapat diperluas ke `AgentProvider` (DevOps Agent) tanpa menulis ulang business logic.
+4. **SSH Connection Testing & System Info**:
+   - Endpoint `POST /api/v1/workspaces/{workspace_id}/servers/{server_id}/connection-test` melakukan validasi jangkauan jaringan, autentikasi SSH, dan mengekstrak informasi dasar server (`hostname`, `operating_system`, `kernel`, `architecture`, `uptime`).
+   - Dilengkapi strict timeout: `SSH_CONNECT_TIMEOUT` dan `SSH_COMMAND_TIMEOUT`.
+   - **Tidak ada arbitrary shell endpoint**: Keamanan terjamin tanpa celah eksekusi arbitrary command dari client.
+5. **Mobile UI / UX (Flutter)**:
+   - Environment list & modal penambahan environment.
+   - Server list dengan status badge (🟢 ONLINE, 🔴 OFFLINE, ⚪ UNKNOWN).
+   - Server detail dengan live action **Test Connection** dan visualisasi server system info.
+   - Form penambahan server dengan selector tipe autentikasi (Password / Private Key).
 
 ---
 

@@ -10,6 +10,7 @@ from app.models.base import Base
 if TYPE_CHECKING:
     from app.models.workspace import Workspace
     from app.models.environment import Environment
+    from app.models.server_credential import ServerCredential
 
 
 class Server(Base):
@@ -86,6 +87,12 @@ class Server(Base):
     environment: Mapped["Environment"] = relationship(
         "Environment",
         back_populates="servers",
+    )
+    credential: Mapped[Optional["ServerCredential"]] = relationship(
+        "ServerCredential",
+        back_populates="server",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
 
     @validates("environment")

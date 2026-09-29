@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
+    # SSH & Credential Encryption
+    CREDENTIAL_ENCRYPTION_KEY: str = "vXv6c8b-vHqIeD_66QvG7F-80hZ-0sX0lJ3Y1kQ9cZg="
+    SSH_CONNECT_TIMEOUT: int = 10
+    SSH_COMMAND_TIMEOUT: int = 15
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

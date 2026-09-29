@@ -4,6 +4,10 @@ import 'package:devops_hub/data/models/auth_token_model.dart';
 import 'package:devops_hub/data/models/workspace_model.dart';
 import 'package:devops_hub/data/models/workspace_member_model.dart';
 
+import 'package:devops_hub/data/models/environment_model.dart';
+import 'package:devops_hub/data/models/server_model.dart';
+import 'package:devops_hub/data/models/connection_test_model.dart';
+
 void main() {
   group('UserModel JSON serialization', () {
     test('fromJson creates valid UserModel with UUID', () {
@@ -95,6 +99,93 @@ void main() {
       expect(member.userId, 'f9876543-1fa5-407c-b276-f72f642f1491');
       expect(member.role, 'DEVELOPER');
       expect(member.userEmail, 'dev@example.com');
+    });
+  });
+
+  group('EnvironmentModel JSON serialization', () {
+    test('fromJson parses environment and server count', () {
+      final json = {
+        'id': 'b1e8471b-29c8-472e-8395-5dbd8f1e0691',
+        'workspace_id': 'c7b5a190-3204-4edb-b483-1e440b8438bf',
+        'name': 'Production',
+        'key': 'production',
+        'description': 'Production environment',
+        'server_count': 3,
+        'created_at': '2026-09-29T10:00:00Z',
+      };
+
+      final env = EnvironmentModel.fromJson(json);
+      expect(env.id, 'b1e8471b-29c8-472e-8395-5dbd8f1e0691');
+      expect(env.name, 'Production');
+      expect(env.key, 'production');
+      expect(env.serverCount, 3);
+      expect(env.description, 'Production environment');
+    });
+  });
+
+  group('ServerModel JSON serialization', () {
+    test('fromJson parses server with nested environment and status', () {
+      final json = {
+        'id': '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c',
+        'workspace_id': 'c7b5a190-3204-4edb-b483-1e440b8438bf',
+        'environment_id': 'b1e8471b-29c8-472e-8395-5dbd8f1e0691',
+        'name': 'Production Odoo',
+        'hostname': 'prod-odoo',
+        'ip_address': '103.111.222.333',
+        'ssh_port': 22,
+        'username': 'ubuntu',
+        'operating_system': 'Ubuntu 24.04',
+        'description': 'Main ERP server',
+        'is_active': true,
+        'has_credential': true,
+        'auth_type': 'PRIVATE_KEY',
+        'status': 'ONLINE',
+        'environment': {
+          'id': 'b1e8471b-29c8-472e-8395-5dbd8f1e0691',
+          'name': 'Production',
+          'key': 'production',
+        },
+      };
+
+      final server = ServerModel.fromJson(json);
+      expect(server.id, '9f0e1d2c-3b4a-5f6e-7d8c-9b0a1f2e3d4c');
+      expect(server.name, 'Production Odoo');
+      expect(server.hostname, 'prod-odoo');
+      expect(server.ipAddress, '103.111.222.333');
+      expect(server.sshPort, 22);
+      expect(server.username, 'ubuntu');
+      expect(server.operatingSystem, 'Ubuntu 24.04');
+      expect(server.hasCredential, true);
+      expect(server.authType, 'PRIVATE_KEY');
+      expect(server.status, 'ONLINE');
+      expect(server.environment?.name, 'Production');
+    });
+  });
+
+  group('ConnectionTestModel JSON serialization', () {
+    test('fromJson parses success and system info', () {
+      final json = {
+        'success': true,
+        'message': 'SSH connection successful',
+        'status': 'ONLINE',
+        'server_info': {
+          'hostname': 'prod-odoo',
+          'operating_system': 'Ubuntu 24.04 LTS',
+          'kernel': '6.8.0-40-generic',
+          'architecture': 'x86_64',
+          'uptime': '18 days, 4 hours',
+        },
+      };
+
+      final result = ConnectionTestModel.fromJson(json);
+      expect(result.success, true);
+      expect(result.message, 'SSH connection successful');
+      expect(result.status, 'ONLINE');
+      expect(result.serverInfo?['hostname'], 'prod-odoo');
+      expect(result.serverInfo?['operating_system'], 'Ubuntu 24.04 LTS');
+      expect(result.serverInfo?['kernel'], '6.8.0-40-generic');
+      expect(result.serverInfo?['architecture'], 'x86_64');
+      expect(result.serverInfo?['uptime'], '18 days, 4 hours');
     });
   });
 }

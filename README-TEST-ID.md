@@ -92,18 +92,60 @@ flutter test
    - Nama Workspace
    - Deskripsi & Timezone
    - Badge Role **`OWNER`** (berwarna cyan cerah)
-4. Bagian bawah menampilkan section placeholder modular (*Coming Soon*) untuk Environment & Server Management yang akan diimplementasikan pada Step berikutnya.
+4. Section Environment dan Server Management aktif di Workspace Home.
 
 ---
 
-### Skenario Uji 7: Auto-Refresh Token & Sesi Aman
+### Skenario Uji 7: Mengelola Environment (Step 06)
+1. Di Workspace Home, pada tab **Environments**, klik **+ Tambah Environment**.
+2. Masukkan data:
+   - Nama: `Production`
+   - Key: `production` (otomatis disesuaikan lowercase & sanitized)
+   - Deskripsi: `Main production cluster`
+3. Klik **Simpan Environment**.
+4. Environment baru muncul pada daftar dengan badge server count awal `0`.
+
+---
+
+### Skenario Uji 8: Mendaftarkan Server Baru & Enkripsi Kredensial (Step 06)
+1. Pindah ke tab **Servers** atau klik tombol **+ Tambah Server**.
+2. Lengkapi form pendaftaran server:
+   - Nama Server: `Prod Web App 01`
+   - Environment: Pilih `Production` dari dropdown
+   - Hostname: `app.prod.internal`
+   - IP Address: `103.120.45.67`
+   - Port SSH: `22`
+   - Username SSH: `ubuntu`
+   - Tipe Autentikasi: `Password` atau `Private Key`
+   - Masukkan Password atau Paste OpenSSH Private Key (dan passphrase opsional).
+3. Klik **Simpan Server**.
+4. Backend mengenkripsi kredensial ke tabel `server_credentials` dengan Fernet AES-128-CBC + HMAC-SHA256. Password/private key tidak pernah dikembalikan ke client.
+5. Server muncul di list dengan status awal `UNKNOWN` atau `OFFLINE` jika belum diuji.
+
+---
+
+### Skenario Uji 9: Test SSH Connection & Remote System Info (Step 06)
+1. Klik pada card server `Prod Web App 01` untuk membuka **Server Detail**.
+2. Klik tombol **⚡ Test Connection**.
+3. Tombol berubah menjadi loading state *(Menguji Koneksi SSH...)*.
+4. Backend menjalankan SSH Provider (`asyncssh`) dengan command ringan (`uname -s`, `hostname`, `uname -r`, `uname -m`, `uptime`).
+5. Jika server aktif dan kredensial cocok:
+   - Status berubah menjadi 🟢 `ONLINE`.
+   - Menampilkan kartu detail Remote System Info: Hostname, Operating System, Kernel, Architecture, dan Uptime.
+6. Jika server tidak dapat dijangkau atau auth gagal:
+   - Status berubah menjadi 🔴 `OFFLINE`.
+   - Menampilkan pesan error yang aman tanpa mengekspos exception traceback atau rahasia server.
+
+---
+
+### Skenario Uji 10: Auto-Refresh Token & Sesi Aman
 1. Sesi pengguna (Access Token & Refresh Token) tersimpan di storage terenkripsi perangkat (`flutter_secure_storage`).
 2. Jika Access Token kadaluarsa (401), `ApiClient` secara transparan memicu endpoint `/auth/refresh` di background, memperbarui token di storage, dan mengulang request data tanpa mengganggu interaksi pengguna.
 3. Jika Refresh Token juga kadaluarsa atau di-revoke, sesi dibersihkan dan pengguna diarahkan kembali ke layar Login.
 
 ---
 
-### Skenario Uji 8: Logout
+### Skenario Uji 11: Logout
 1. Klik tombol **Logout** di AppBar.
 2. Dialog konfirmasi muncul.
 3. Klik **"Logout"**.
@@ -114,7 +156,7 @@ flutter test
 ## 🧪 Struktur Unit & Widget Test Otomatis (Mobile)
 
 File test terletak di folder `mobile/test/`:
-- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk `UserModel`, `AuthTokenModel`, `WorkspaceModel`, dan `WorkspaceMemberModel`.
+- `models_test.dart`: Pengujian serialisasi & parsing JSON untuk `UserModel`, `AuthTokenModel`, `WorkspaceModel`, `WorkspaceMemberModel`, `EnvironmentModel`, `ServerModel`, dan `ConnectionTestModel`.
 - `api_exception_test.dart`: Pengujian parsing error backend, handling status code HTTP (400, 401, 403, 404, 409, 422, 500) dan timeout connection.
 - `widgets_test.dart`: Pengujian rendering dan event listener pada Base Widgets (`AppButton`, `AppTextField`, `AppStatusBadge`, `AppCard`).
 - `widget_test.dart`: Pengujian inisialisasi aplikasi `DevOpsHubApp` dan halaman startup.

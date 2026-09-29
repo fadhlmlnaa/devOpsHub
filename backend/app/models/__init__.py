@@ -4,6 +4,7 @@ from app.models.workspace import Workspace
 from app.models.workspace_member import WorkspaceMember, WorkspaceRole
 from app.models.environment import Environment
 from app.models.server import Server
+from app.models.server_credential import ServerCredential
 from app.models.refresh_token import RefreshToken
 
 __all__ = [
@@ -14,5 +15,6 @@ __all__ = [
     "WorkspaceRole",
     "Environment",
     "Server",
+    "ServerCredential",
     "RefreshToken",
 ]

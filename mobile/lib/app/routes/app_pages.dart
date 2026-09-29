@@ -8,6 +8,8 @@ import '../../modules/splash/controllers/splash_controller.dart';
 import '../../modules/splash/views/splash_view.dart';
 import '../../modules/workspace/views/workspace_home_view.dart';
 import '../../modules/workspace/views/workspace_list_view.dart';
+import '../../modules/server/views/add_server_view.dart';
+import '../../modules/server/views/server_detail_view.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -47,6 +49,16 @@ class AppPages {
       name: AppRoutes.workspaceHome,
       page: () => const WorkspaceHomeView(),
       binding: WorkspaceBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.addServer,
+      page: () => const AddServerView(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.serverDetail,
+      page: () => const ServerDetailView(),
       transition: Transition.rightToLeft,
     ),
   ];
