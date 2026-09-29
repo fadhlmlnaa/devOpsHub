@@ -63,14 +63,14 @@ class _CreateComposeSheetState extends State<CreateComposeSheet> {
         .replaceAll(RegExp(r'-+'), '-');
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (_selectedEnvId == null || _selectedEnvId!.isEmpty) {
       Get.snackbar('Validasi Gagal', 'Silakan pilih environment target.');
       return;
     }
 
     if (_formKey.currentState?.validate() ?? false) {
-      _composeController.createProject(
+      final success = await _composeController.createProject(
         name: _nameController.text.trim(),
         projectName: _projectController.text.trim(),
         environmentId: _selectedEnvId!,
@@ -78,6 +78,10 @@ class _CreateComposeSheetState extends State<CreateComposeSheet> {
         composeFile: _fileController.text.trim(),
         description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
       );
+
+      if (success && mounted) {
+        Navigator.of(context).pop(true);
+      }
     }
   }
 
@@ -85,12 +89,21 @@ class _CreateComposeSheetState extends State<CreateComposeSheet> {
   Widget build(BuildContext context) {
     final envs = _envController.environments;
 
-    return Padding(
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF161B22),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border(
+          top: BorderSide(color: Color(0xFF30363D), width: 1),
+          left: BorderSide(color: Color(0xFF30363D), width: 1),
+          right: BorderSide(color: Color(0xFF30363D), width: 1),
+        ),
+      ),
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        top: 14,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       child: Form(
         key: _formKey,
@@ -99,6 +112,18 @@ class _CreateComposeSheetState extends State<CreateComposeSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF484F58),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
               Row(
                 children: [
                   Container(
@@ -110,13 +135,19 @@ class _CreateComposeSheetState extends State<CreateComposeSheet> {
                     child: const Icon(Icons.add_to_photos_rounded, color: Color(0xFFBC8CFF), size: 20),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    'Registrasi Docker Compose',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  const Expanded(
+                    child: Text(
+                      'Registrasi Docker Compose',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF8B949E)),
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               const Divider(color: Color(0xFF21262D), height: 1),
               const SizedBox(height: 16),
 
@@ -126,7 +157,7 @@ class _CreateComposeSheetState extends State<CreateComposeSheet> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF161B22),
+                  color: const Color(0xFF0D1117),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFF30363D)),
                 ),

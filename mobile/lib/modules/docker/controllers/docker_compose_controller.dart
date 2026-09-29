@@ -75,7 +75,7 @@ class DockerComposeController extends GetxController {
     }
   }
 
-  Future<void> createProject({
+  Future<bool> createProject({
     required String name,
     required String projectName,
     required String environmentId,
@@ -85,7 +85,7 @@ class DockerComposeController extends GetxController {
   }) async {
     if (!canMutate) {
       Get.snackbar('Akses Ditolak', 'Hanya Admin/Owner yang dapat mendaftarkan Compose project.');
-      return;
+      return false;
     }
 
     isLoading.value = true;
@@ -106,11 +106,15 @@ class DockerComposeController extends GetxController {
         data,
       );
 
-      Get.back(); // close modal/sheet
       Get.snackbar('Berhasil', 'Docker Compose project berhasil didaftarkan.', backgroundColor: Colors.teal, colorText: Colors.white);
       loadComposeProjects();
+      return true;
     } on ApiException catch (e) {
       Get.snackbar('Gagal Registrasi', e.message, backgroundColor: Colors.red, colorText: Colors.white);
+      return false;
+    } catch (e) {
+      Get.snackbar('Gagal Registrasi', '$e', backgroundColor: Colors.red, colorText: Colors.white);
+      return false;
     } finally {
       isLoading.value = false;
     }

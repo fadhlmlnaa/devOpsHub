@@ -109,8 +109,8 @@ class _DeploymentConfigFormViewState extends State<DeploymentConfigFormView> {
       success = await _controller.updateConfig(widget.config!.id, payload);
     }
 
-    if (success) {
-      Get.back(result: true);
+    if (success && mounted) {
+      Navigator.of(context).pop(true);
     }
   }
 
