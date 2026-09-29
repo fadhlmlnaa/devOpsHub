@@ -44,7 +44,8 @@ def main():
             logger.info("Workspace ID: %s", res.get("workspace_id"))
             logger.info("Konfigurasi tersimpan di: %s", args.config)
         except Exception as e:
-            logger.error("Enrollment GAGAL: %s", e)
+            err_msg = str(e) if str(e) else repr(e)
+            logger.error("Enrollment GAGAL (%s): %s", type(e).__name__, err_msg)
             sys.exit(1)
 
     elif args.command == "run":
