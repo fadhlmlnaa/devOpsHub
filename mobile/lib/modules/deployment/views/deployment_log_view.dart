@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -26,6 +27,7 @@ class _DeploymentLogViewState extends State<DeploymentLogView> {
   final TextEditingController _searchCtrl = TextEditingController();
   String _searchQuery = '';
   final ScrollController _scrollController = ScrollController();
+  Timer? _pollingTimer;
 
   @override
   void initState() {
@@ -36,10 +38,21 @@ class _DeploymentLogViewState extends State<DeploymentLogView> {
 
     _controller.workspaceId = widget.workspaceId;
     _controller.fetchLogs(widget.deployment.id);
+
+    // Auto-polling while deployment is running
+    _pollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      final currentStatus = _controller.currentLogs.value?.status ?? widget.deployment.status;
+      if (currentStatus == 'RUNNING' || currentStatus == 'PENDING') {
+        _controller.fetchLogs(widget.deployment.id);
+      } else {
+        _pollingTimer?.cancel();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _pollingTimer?.cancel();
     _searchCtrl.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -86,7 +99,7 @@ class _DeploymentLogViewState extends State<DeploymentLogView> {
       ),
       body: Column(
         children: [
-          // Header Card with status
+          // Header Card with reactive status
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             color: AppColors.surfaceCard,
@@ -108,7 +121,10 @@ class _DeploymentLogViewState extends State<DeploymentLogView> {
                     ],
                   ),
                 ),
-                _buildStatusBadge(widget.deployment.status),
+                Obx(() {
+                  final activeStatus = _controller.currentLogs.value?.status ?? widget.deployment.status;
+                  return _buildStatusBadge(activeStatus);
+                }),
               ],
             ),
           ),
@@ -151,12 +167,34 @@ class _DeploymentLogViewState extends State<DeploymentLogView> {
           // Log entries terminal view
           Expanded(
             child: Obx(() {
-              if (_controller.isLoadingLogs.value) {
+              if (_controller.isLoadingLogs.value && _controller.currentLogs.value == null) {
                 return const Center(child: CircularProgressIndicator(color: AppColors.primary));
               }
 
               final logsModel = _controller.currentLogs.value;
+              final currentStatus = logsModel?.status ?? widget.deployment.status;
+
               if (logsModel == null || logsModel.entries.isEmpty) {
+                if (currentStatus == 'RUNNING' || currentStatus == 'PENDING') {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(color: AppColors.primary),
+                          SizedBox(height: 16),
+                          Text(
+                            'Menghubungkan & mengeksekusi deployment di server...',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
                 return const Center(
                   child: Text(
                     'Tidak ada baris log untuk deployment ini.',

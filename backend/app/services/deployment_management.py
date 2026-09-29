@@ -313,8 +313,25 @@ class DeploymentManagementService:
         self.db.commit()
         self.db.refresh(deployment)
 
+        persisted_sequences = set()
+
+        def on_log_entry(level: str, msg: str, sequence: int, ts: datetime):
+            try:
+                log_row = DeploymentLog(
+                    deployment_id=deployment.id,
+                    sequence=sequence,
+                    timestamp=ts,
+                    level=level,
+                    message=msg,
+                )
+                self.db.add(log_row)
+                self.db.commit()
+                persisted_sequences.add(sequence)
+            except Exception as ex:
+                logger.warning("Failed to persist incremental log: %s", ex)
+
         try:
-            # Execute deployment through provider
+            # Execute deployment through provider with real-time log callback
             exec_result = await self.provider.deploy(
                 host=host,
                 port=srv.ssh_port,
@@ -323,6 +340,7 @@ class DeploymentManagementService:
                 private_key=pk,
                 passphrase=passphrase,
                 config=config,
+                log_callback=on_log_entry,
             )
 
             deployment.status = exec_result.status
@@ -331,8 +349,11 @@ class DeploymentManagementService:
             deployment.message = exec_result.message
             deployment.error_message = exec_result.error_message
 
-            # Save persisted logs
+            # Save any remaining logs that were not persisted by callback
             for entry in exec_result.logs:
+                if entry["sequence"] in persisted_sequences:
+                    continue
+
                 ts = entry.get("timestamp")
                 if isinstance(ts, str):
                     try:

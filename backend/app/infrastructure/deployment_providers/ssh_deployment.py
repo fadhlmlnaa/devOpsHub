@@ -119,7 +119,7 @@ class SSHDeploymentProvider(DeploymentProvider):
             seq += 1
             if log_callback:
                 try:
-                    log_callback(level, cleaned_msg)
+                    log_callback(level, cleaned_msg, entry["sequence"], entry["timestamp"])
                 except Exception:
                     pass
 
