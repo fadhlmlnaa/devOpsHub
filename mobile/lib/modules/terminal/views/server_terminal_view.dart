@@ -168,17 +168,23 @@ class _ServerTerminalViewState extends State<ServerTerminalView> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Obx(() => Text(
-                    controller.statusMessage.value,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: controller.state.value == TerminalState.connected
-                          ? AppColors.success
-                          : controller.state.value == TerminalState.error
-                              ? AppColors.error
-                              : AppColors.textMuted,
-                    ),
-                  )),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Obx(() => Text(
+                      controller.statusMessage.value,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: controller.state.value == TerminalState.connected
+                            ? AppColors.success
+                            : controller.state.value == TerminalState.error
+                                ? AppColors.error
+                                : AppColors.textMuted,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                    )),
+                  ),
                 ],
               ),
             ),

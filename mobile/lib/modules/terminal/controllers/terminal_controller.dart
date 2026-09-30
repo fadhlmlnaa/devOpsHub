@@ -48,7 +48,7 @@ class TerminalController extends GetxController {
   Future<void> connect() async {
     disconnect();
     state.value = TerminalState.connecting;
-    statusMessage.value = 'Membuka koneksi WebSocket SSH PTY...';
+    statusMessage.value = 'Menghubungkan...';
     outputLines.clear();
     currentRawBuffer.value = '';
 
@@ -58,7 +58,7 @@ class TerminalController extends GetxController {
 
       if (token == null) {
         state.value = TerminalState.error;
-        statusMessage.value = 'Sesi login tidak valid. Silakan login kembali.';
+        statusMessage.value = 'Sesi tidak valid';
         _appendOutput('[DevOpsHub] Error: Token autentikasi tidak ditemukan.\n');
         return;
       }
@@ -85,18 +85,18 @@ class TerminalController extends GetxController {
         },
         onError: (err) {
           state.value = TerminalState.error;
-          statusMessage.value = 'Koneksi error: $err';
+          statusMessage.value = 'Koneksi error';
           _appendOutput('\n[DevOpsHub] Error koneksi: $err\n');
         },
         onDone: () {
           state.value = TerminalState.disconnected;
-          statusMessage.value = 'Koneksi terputus';
+          statusMessage.value = 'Terputus';
           _appendOutput('\n[DevOpsHub] Sesi terminal ditutup oleh server.\n');
         },
       );
     } catch (e) {
       state.value = TerminalState.error;
-      statusMessage.value = 'Gagal terhubung: $e';
+      statusMessage.value = 'Gagal terhubung';
       _appendOutput('\n[DevOpsHub] Gagal menghubungkan terminal: $e\n');
     }
   }
