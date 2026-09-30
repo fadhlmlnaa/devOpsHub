@@ -51,9 +51,58 @@ class _ServerTerminalViewState extends State<ServerTerminalView> {
   void _submitCommand() {
     final text = _inputController.text;
     if (text.isNotEmpty) {
+      if (controller.commandHistory.isEmpty || controller.commandHistory.last != text) {
+        controller.commandHistory.add(text);
+      }
+      controller.historyIndex = controller.commandHistory.length;
       controller.sendCommand(text);
       _inputController.clear();
       _inputFocusNode.requestFocus();
+    } else {
+      controller.sendInput('\n');
+    }
+  }
+
+  void _handleVirtualKey(String key) {
+    if (key == 'UP') {
+      if (controller.commandHistory.isNotEmpty) {
+        if (controller.historyIndex > 0) {
+          controller.historyIndex--;
+        }
+        _inputController.text = controller.commandHistory[controller.historyIndex];
+        _inputController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _inputController.text.length),
+        );
+        _inputFocusNode.requestFocus();
+      } else {
+        controller.sendKey('UP');
+      }
+    } else if (key == 'DOWN') {
+      if (controller.commandHistory.isNotEmpty) {
+        if (controller.historyIndex < controller.commandHistory.length - 1) {
+          controller.historyIndex++;
+          _inputController.text = controller.commandHistory[controller.historyIndex];
+          _inputController.selection = TextSelection.fromPosition(
+            TextPosition(offset: _inputController.text.length),
+          );
+        } else {
+          controller.historyIndex = controller.commandHistory.length;
+          _inputController.clear();
+        }
+        _inputFocusNode.requestFocus();
+      } else {
+        controller.sendKey('DOWN');
+      }
+    } else if (key == 'TAB') {
+      final currentText = _inputController.text;
+      if (currentText.isNotEmpty) {
+        controller.sendInput('$currentText\t');
+        _inputController.clear();
+      } else {
+        controller.sendKey('TAB');
+      }
+    } else {
+      controller.sendKey(key);
     }
   }
 
@@ -227,14 +276,13 @@ class _ServerTerminalViewState extends State<ServerTerminalView> {
   }
 
   Widget _buildTerminalLine(String text) {
-    // Simple & Clean ANSI color parser
     final spans = _parseAnsi(text);
     return RichText(
       text: TextSpan(
         style: const TextStyle(
           fontFamily: 'monospace',
           fontSize: 12,
-          height: 1.3,
+          height: 1.35,
           color: Color(0xFFC9D1D9),
         ),
         children: spans,
@@ -242,34 +290,102 @@ class _ServerTerminalViewState extends State<ServerTerminalView> {
     );
   }
 
-  List<TextSpan> _parseAnsi(String text) {
+  static String _cleanAnsiEscapeCodes(String raw) {
+    var s = raw;
+    // 1. Remove OSC sequences (Operating System Commands, e.g., window titles: \x1b]0;...\x07 or \x1b]...\x1b\)
+    s = s.replaceAll(RegExp(r'\x1B\][^\x07\x1B]*(?:\x07|\x1B\\)?'), '');
+    // 2. Remove non-color CSI control sequences (cursor position, clear screen, bracketed paste mode, etc.)
+    // Matches \x1b[ followed by optional parameters and ending in any letter other than 'm' or tilde
+    s = s.replaceAll(RegExp(r'\x1B\[[\?=0-9;]*[A-LN-Za-ln-z~]'), '');
+    // 3. Remove character set & keypad modes (\x1b(B, \x1b=, \x1b>, etc.)
+    s = s.replaceAll(RegExp(r'\x1B[\(\)][A-Za-z0-9]|\x1B[=>]'), '');
+    // 4. Remove all carriage returns (\r / \x0D) to avoid Android missing glyph box []
+    s = s.replaceAll('\r', '');
+    // 5. Remove non-printable control characters except Tab (\t \x09), Newline (\n \x0A), and ESC (\x1B \x1B)
+    s = s.replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1A\x1C-\x1F\x7F-\x9F]'), '');
+    // 6. Remove unmapped Unicode Private Use Area (PUA) powerline glyphs (\uE000-\uF8FF) and specials
+    s = s.replaceAll(RegExp(r'[\uE000-\uF8FF\uFFF0-\uFFFF]'), '');
+    return s;
+  }
+
+  List<TextSpan> _parseAnsi(String rawText) {
+    final text = _cleanAnsiEscapeCodes(rawText);
+    if (text.isEmpty) return [const TextSpan(text: '')];
+
     final spans = <TextSpan>[];
-    final ansiRegex = RegExp(r'\x1B\[([0-9;]*)m');
+    // Match SGR color/style sequences: \x1B[...m OR raw [...m (e.g. \x1b[01;32m or [01;32m)
+    final ansiRegex = RegExp(r'(?:\x1B\[|\[)([0-9;]+)m');
     int lastEnd = 0;
     Color currentColor = const Color(0xFFC9D1D9);
+    Color? currentBgColor;
     FontWeight currentWeight = FontWeight.normal;
+    FontStyle currentStyle = FontStyle.normal;
+    TextDecoration currentDecoration = TextDecoration.none;
 
     for (final match in ansiRegex.allMatches(text)) {
       if (match.start > lastEnd) {
         spans.add(TextSpan(
           text: text.substring(lastEnd, match.start),
-          style: TextStyle(color: currentColor, fontWeight: currentWeight),
+          style: TextStyle(
+            color: currentColor,
+            backgroundColor: currentBgColor,
+            fontWeight: currentWeight,
+            fontStyle: currentStyle,
+            decoration: currentDecoration,
+          ),
         ));
       }
 
-      final codes = match.group(1)?.split(';') ?? [];
-      for (final codeStr in codes) {
-        final code = int.tryParse(codeStr) ?? 0;
+      final rawCodes = match.group(1) ?? '';
+      final codes = rawCodes.isEmpty ? [0] : rawCodes.split(';').map((e) => int.tryParse(e) ?? 0).toList();
+
+      int i = 0;
+      while (i < codes.length) {
+        final code = codes[i];
         if (code == 0) {
+          // Reset
           currentColor = const Color(0xFFC9D1D9);
+          currentBgColor = null;
           currentWeight = FontWeight.normal;
+          currentStyle = FontStyle.normal;
+          currentDecoration = TextDecoration.none;
         } else if (code == 1) {
           currentWeight = FontWeight.bold;
+        } else if (code == 2) {
+          // Dim / Faint
+          currentColor = currentColor.withValues(alpha: 0.7);
+        } else if (code == 3) {
+          currentStyle = FontStyle.italic;
+        } else if (code == 4) {
+          currentDecoration = TextDecoration.underline;
+        } else if (code == 22) {
+          currentWeight = FontWeight.normal;
+        } else if (code == 23) {
+          currentStyle = FontStyle.normal;
+        } else if (code == 24) {
+          currentDecoration = TextDecoration.none;
         } else if (code >= 30 && code <= 37) {
           currentColor = _getAnsiColor(code);
+        } else if (code == 38 && i + 2 < codes.length && codes[i + 1] == 5) {
+          // 256 Color Foreground: 38;5;n
+          currentColor = _get256Color(codes[i + 2]);
+          i += 2;
+        } else if (code == 39) {
+          currentColor = const Color(0xFFC9D1D9); // Default FG
+        } else if (code >= 40 && code <= 47) {
+          currentBgColor = _getAnsiColor(code - 10).withValues(alpha: 0.35);
+        } else if (code == 48 && i + 2 < codes.length && codes[i + 1] == 5) {
+          // 256 Color Background: 48;5;n
+          currentBgColor = _get256Color(codes[i + 2]).withValues(alpha: 0.35);
+          i += 2;
+        } else if (code == 49) {
+          currentBgColor = null; // Default BG
         } else if (code >= 90 && code <= 97) {
           currentColor = _getAnsiBrightColor(code);
+        } else if (code >= 100 && code <= 107) {
+          currentBgColor = _getAnsiBrightColor(code - 10).withValues(alpha: 0.35);
         }
+        i++;
       }
       lastEnd = match.end;
     }
@@ -277,7 +393,13 @@ class _ServerTerminalViewState extends State<ServerTerminalView> {
     if (lastEnd < text.length) {
       spans.add(TextSpan(
         text: text.substring(lastEnd),
-        style: TextStyle(color: currentColor, fontWeight: currentWeight),
+        style: TextStyle(
+          color: currentColor,
+          backgroundColor: currentBgColor,
+          fontWeight: currentWeight,
+          fontStyle: currentStyle,
+          decoration: currentDecoration,
+        ),
       ));
     }
 
@@ -314,7 +436,7 @@ class _ServerTerminalViewState extends State<ServerTerminalView> {
   Color _getAnsiBrightColor(int code) {
     switch (code) {
       case 90:
-        return const Color(0xFF6E7681); // Bright Black / Gray
+        return const Color(0xFF8B949E); // Bright Black / Gray
       case 91:
         return const Color(0xFFFF7B72); // Bright Red
       case 92:
@@ -334,8 +456,31 @@ class _ServerTerminalViewState extends State<ServerTerminalView> {
     }
   }
 
+  Color _get256Color(int index) {
+    if (index < 0 || index > 255) return const Color(0xFFC9D1D9);
+    if (index < 8) return _getAnsiColor(30 + index);
+    if (index < 16) return _getAnsiBrightColor(90 + index - 8);
+
+    // 6x6x6 Color Cube (16 - 231)
+    if (index <= 231) {
+      final offset = index - 16;
+      final r = (offset ~/ 36) * 51;
+      final g = ((offset % 36) ~/ 6) * 51;
+      final b = (offset % 6) * 51;
+      return Color.fromARGB(255, r, g, b);
+    }
+
+    // Grayscale ramp (232 - 255)
+    final gray = (index - 232) * 10 + 8;
+    return Color.fromARGB(255, gray, gray, gray);
+  }
+
   Widget _buildSnippetsBar() {
     final snippets = [
+      'ls -la',
+      'pwd',
+      'cd ~',
+      'cd ..',
       'docker ps',
       'htop',
       'df -h',
@@ -344,7 +489,6 @@ class _ServerTerminalViewState extends State<ServerTerminalView> {
       'systemctl status',
       'ip a',
       'journalctl -n 50',
-      'uname -a',
       'clear',
     ];
 
@@ -403,6 +547,7 @@ class _ServerTerminalViewState extends State<ServerTerminalView> {
       {'label': '~', 'key': '~'},
       {'label': '/', 'key': '/'},
       {'label': '-', 'key': '-'},
+      {'label': 'cd ', 'key': 'cd '},
       {'label': 'sudo', 'key': 'sudo '},
       {'label': '&&', 'key': ' && '},
     ];
@@ -429,7 +574,17 @@ class _ServerTerminalViewState extends State<ServerTerminalView> {
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 3.0),
             child: InkWell(
-              onTap: () => controller.sendKey(key),
+              onTap: () {
+                if (key == 'cd ' || key == 'sudo ' || key == ' && ') {
+                  _inputController.text += key;
+                  _inputController.selection = TextSelection.fromPosition(
+                    TextPosition(offset: _inputController.text.length),
+                  );
+                  _inputFocusNode.requestFocus();
+                } else {
+                  _handleVirtualKey(key);
+                }
+              },
               borderRadius: BorderRadius.circular(6),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

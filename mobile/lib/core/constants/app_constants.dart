@@ -8,7 +8,7 @@ class AppConstants {
     if (envUrl.isNotEmpty) {
       return envUrl;
     }
-    return 'http://127.0.0.1:8000/api/v1';
+    return 'https://hebrew-median-kerry-highway.trycloudflare.com/api/v1';
   }
 
   static String baseUrl = defaultBaseUrl;
@@ -25,4 +25,5 @@ class AppConstants {
   static const String keyUserName = 'devops_user_name';
   static const String keyUserId = 'devops_user_id';
   static const String keySelectedWorkspaceId = 'devops_selected_ws_id';
+  static const String keyCustomBaseUrl = 'devops_custom_base_url';
 }

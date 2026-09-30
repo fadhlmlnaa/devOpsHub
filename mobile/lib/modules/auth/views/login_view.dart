@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../app/theme/app_colors.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/storage/secure_storage_service.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../controllers/auth_controller.dart';
@@ -213,12 +216,133 @@ class _LoginViewState extends State<LoginView> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 32),
+
+                    // Server URL Config & Status Link
+                    Center(
+                      child: InkWell(
+                        onTap: _showServerConfigDialog,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF161B22),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFF30363D)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.dns_rounded, size: 14, color: AppColors.primary),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  'Server: ${AppConstants.baseUrl}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                    fontFamily: 'monospace',
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.edit_rounded, size: 12, color: AppColors.textMuted),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showServerConfigDialog() {
+    final serverUrlController = TextEditingController(text: AppConstants.baseUrl);
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: const Color(0xFF161B22),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF30363D)),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.dns_rounded, color: AppColors.primary, size: 20),
+            SizedBox(width: 8),
+            Text(
+              'Pengaturan Server Backend',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Masukkan IP Laptop / Base URL API Backend (contoh: http://192.168.1.50:8000/api/v1 atau URL Tunnel):',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: serverUrlController,
+              style: const TextStyle(fontSize: 13, color: Colors.white, fontFamily: 'monospace'),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF0D1117),
+                hintText: 'http://192.168.1.50:8000/api/v1',
+                hintStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF30363D)),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Batal', style: TextStyle(color: AppColors.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () async {
+              var newUrl = serverUrlController.text.trim();
+              if (newUrl.isNotEmpty) {
+                if (!newUrl.startsWith('http://') && !newUrl.startsWith('https://')) {
+                  newUrl = 'http://$newUrl';
+                }
+                final secureStorage = Get.find<SecureStorageService>();
+                await secureStorage.saveCustomBaseUrl(newUrl);
+                final apiClient = Get.find<ApiClient>();
+                apiClient.updateBaseUrl(newUrl);
+                setState(() {});
+                Get.back();
+                Get.snackbar(
+                  'Server Disimpan',
+                  'URL Backend aktif: $newUrl',
+                  snackPosition: SnackPosition.BOTTOM,
+                  backgroundColor: const Color(0xFF1F2937),
+                  colorText: Colors.white,
+                );
+              }
+            },
+            child: const Text('Simpan & Terapkan', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

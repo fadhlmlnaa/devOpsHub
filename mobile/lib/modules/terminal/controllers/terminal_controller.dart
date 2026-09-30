@@ -64,9 +64,14 @@ class TerminalController extends GetxController {
       }
 
       final apiClient = Get.find<ApiClient>();
-      final baseUrl = apiClient.dio.options.baseUrl.isNotEmpty
+      String baseUrl = apiClient.dio.options.baseUrl.isNotEmpty
           ? apiClient.dio.options.baseUrl
           : AppConstants.baseUrl; // e.g. http://127.0.0.1:8000/api/v1
+      
+      if (baseUrl.endsWith('/')) {
+        baseUrl = baseUrl.substring(0, baseUrl.length - 1);
+      }
+      
       final wsBaseUrl = baseUrl
           .replaceFirst('https://', 'wss://')
           .replaceFirst('http://', 'ws://');
@@ -109,16 +114,31 @@ class TerminalController extends GetxController {
     state.value = TerminalState.disconnected;
   }
 
-  void _appendOutput(String chunk) {
-    currentRawBuffer.value += chunk;
+  final List<String> commandHistory = <String>[];
+  int historyIndex = -1;
 
-    // Split lines preserving formatting
-    final split = currentRawBuffer.value.split('\n');
-    if (split.length > 1) {
-      for (int i = 0; i < split.length - 1; i++) {
-        outputLines.add(split[i]);
+  void _appendOutput(String chunk) {
+    if (chunk.isEmpty) return;
+
+    // Normalize carriage returns: \r\n -> \n
+    final normalized = chunk.replaceAll('\r\n', '\n');
+    final lines = normalized.split('\n');
+
+    for (int i = 0; i < lines.length; i++) {
+      var line = lines[i];
+
+      // Handle standalone \r (Carriage Return in PTY)
+      if (line.contains('\r')) {
+        final segments = line.split('\r');
+        line = segments.lastWhere((s) => s.isNotEmpty, orElse: () => '');
       }
-      currentRawBuffer.value = split.last;
+
+      if (i == 0) {
+        currentRawBuffer.value += line;
+      } else {
+        outputLines.add(currentRawBuffer.value);
+        currentRawBuffer.value = line;
+      }
     }
 
     // Keep maximum 1000 lines in history
@@ -134,7 +154,7 @@ class TerminalController extends GetxController {
       if (scrollController.hasClients) {
         scrollController.animateTo(
           scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 80),
+          duration: const Duration(milliseconds: 60),
           curve: Curves.easeOut,
         );
       }
@@ -195,7 +215,13 @@ class TerminalController extends GetxController {
 
   String get fullCleanOutput {
     final all = [...outputLines, currentRawBuffer.value].join('\n');
-    // Strip ANSI codes for clean clipboard copy
-    return all.replaceAll(RegExp(r'\x1B\[[0-?]*[ -/]*[@-~]'), '');
+    var s = all;
+    s = s.replaceAll(RegExp(r'\x1B\][^\x07\x1B]*(?:\x07|\x1B\\)?'), '');
+    s = s.replaceAll(RegExp(r'(?:\x1B\[|\[)[\?=0-9;]*[A-Za-z~]'), '');
+    s = s.replaceAll(RegExp(r'\x1B[\(\)][A-Za-z0-9]|\x1B[=>]'), '');
+    s = s.replaceAll('\r', '');
+    s = s.replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]'), '');
+    s = s.replaceAll(RegExp(r'[\uE000-\uF8FF\uFFF0-\uFFFF]'), '');
+    return s;
   }
 }

@@ -89,16 +89,17 @@ class TerminalService:
 
         # Log audit trail for session start
         try:
-            self.audit_service.log_action(
-                workspace_id=server.workspace_id,
-                user_id=user.id,
+            self.audit_service.log(
                 action="TERMINAL_SESSION_OPENED",
                 resource_type="server",
-                resource_id=str(server.id),
                 status="SUCCESS",
+                workspace_id=server.workspace_id,
+                user_id=user.id,
+                resource_id=str(server.id),
+                server_id=server.id,
                 ip_address=websocket.client.host if websocket.client else None,
                 user_agent="DevOpsHub-Mobile-Terminal",
-                details={
+                metadata={
                     "server_id": str(server.id),
                     "server_name": server.name,
                     "host": host,
@@ -229,16 +230,17 @@ class TerminalService:
             )
         finally:
             try:
-                self.audit_service.log_action(
-                    workspace_id=server.workspace_id,
-                    user_id=user.id,
+                self.audit_service.log(
                     action="TERMINAL_SESSION_CLOSED",
                     resource_type="server",
-                    resource_id=str(server.id),
                     status="SUCCESS",
+                    workspace_id=server.workspace_id,
+                    user_id=user.id,
+                    resource_id=str(server.id),
+                    server_id=server.id,
                     ip_address=websocket.client.host if websocket.client else None,
                     user_agent="DevOpsHub-Mobile-Terminal",
-                    details={
+                    metadata={
                         "server_id": str(server.id),
                         "server_name": server.name,
                     },

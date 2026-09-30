@@ -60,7 +60,20 @@ class SecureStorageService {
     return await _storage.read(key: AppConstants.keySelectedWorkspaceId);
   }
 
+  Future<void> saveCustomBaseUrl(String url) async {
+    await _storage.write(key: AppConstants.keyCustomBaseUrl, value: url);
+  }
+
+  Future<String?> getCustomBaseUrl() async {
+    return await _storage.read(key: AppConstants.keyCustomBaseUrl);
+  }
+
   Future<void> clearAll() async {
+    final customUrl = await getCustomBaseUrl();
     await _storage.deleteAll();
+    // Preserve custom server URL across logouts
+    if (customUrl != null) {
+      await saveCustomBaseUrl(customUrl);
+    }
   }
 }

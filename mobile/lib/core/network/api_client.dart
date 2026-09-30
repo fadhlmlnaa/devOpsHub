@@ -30,6 +30,11 @@ class ApiClient {
     _setupInterceptors();
   }
 
+  void updateBaseUrl(String newUrl) {
+    AppConstants.baseUrl = newUrl;
+    dio.options.baseUrl = newUrl;
+  }
+
   void _setupInterceptors() {
     dio.interceptors.add(
       InterceptorsWrapper(
