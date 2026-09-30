@@ -403,8 +403,8 @@ class _ServerTerminalViewState extends State<ServerTerminalView> {
 
     return Container(
       height: 42,
-      color: const Color(0xFF0D1117),
       decoration: const BoxDecoration(
+        color: Color(0xFF0D1117),
         border: Border(
           top: BorderSide(color: Color(0xFF30363D), width: 1),
           bottom: BorderSide(color: Color(0xFF30363D), width: 1),
